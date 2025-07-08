@@ -1,0 +1,77 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mongodb"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+    id        String   @id @default(auto()) @map("_id") @db.ObjectId
+    clerkId   String   @unique
+    email     String   @unique
+    firstName String?
+    lastName  String?
+    username  String?
+    imageUrl  String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    // Relationships
+    connections ServerConnection[]
+
+    @@map("users")
+}
+
+model ServerConnection {
+    id       String @id @default(auto()) @map("_id") @db.ObjectId
+    name     String
+    host     String
+    port     Int
+    username String
+
+    // Encrypted credentials - only the user who created them can decrypt
+    encryptedPassword   String? // AES encrypted with user's master key
+    encryptedPrivateKey String? // AES encrypted with user's master key
+    encryptedPassphrase String? // AES encrypted with user's master key
+
+    // Metadata
+    createdAt DateTime  @default(now())
+    updatedAt DateTime  @updatedAt
+    lastUsed  DateTime?
+
+    // User relationship
+    userId String @db.ObjectId
+    user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@map("server_connections")
+}
+
+model UserSession {
+    id        String @id @default(auto()) @map("_id") @db.ObjectId
+    userId    String @db.ObjectId
+    sessionId String @unique
+
+    // Session data
+    masterKeyHash String // Hash of the user's master encryption key
+    expiresAt     DateTime
+    createdAt     DateTime @default(now())
+
+    @@map("user_sessions")
+}
+
+model LogSession {
+    id           String @id @default(auto()) @map("_id") @db.ObjectId
+    userId       String @db.ObjectId
+    connectionId String @db.ObjectId
+
+    // Session details
+    command     String
+    commandType String // 'command' or 'file'
+    startedAt   DateTime  @default(now())
+    endedAt     DateTime?
+    logCount    Int       @default(0)
+
+    @@map("log_sessions")
+}

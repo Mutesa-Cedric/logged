@@ -87,8 +87,8 @@ export const ServerConnection = ({ onAdd, onCancel, onTest }: ServerConnectionPr
         (authType === 'password' ? formData.password : formData.privateKey);
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-xl font-semibold text-gray-900">Add Server Connection</h2>
@@ -247,8 +247,8 @@ export const ServerConnection = ({ onAdd, onCancel, onTest }: ServerConnectionPr
 
                         {testResult && (
                             <div className={`p-3 rounded-md ${testResult.success
-                                    ? 'bg-green-50 text-green-700 border border-green-200'
-                                    : 'bg-red-50 text-red-700 border border-red-200'
+                                ? 'bg-green-50 text-green-700 border border-green-200'
+                                : 'bg-red-50 text-red-700 border border-red-200'
                                 }`}>
                                 <div className="flex items-center">
                                     <svg className={`w-4 h-4 mr-2 ${testResult.success ? 'text-green-500' : 'text-red-500'}`}
@@ -264,30 +264,33 @@ export const ServerConnection = ({ onAdd, onCancel, onTest }: ServerConnectionPr
                             </div>
                         )}
 
-                        <div className="flex justify-between space-x-3 pt-4">
+                        <div className='pt-4'>
                             <button
                                 type="button"
                                 onClick={handleTest}
                                 disabled={!isFormValid || isLoading}
-                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed w-full"
                             >
                                 {isLoading ? 'Testing...' : 'Test Connection'}
                             </button>
-                            <button
-                                type="button"
-                                onClick={onCancel}
-                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                type="submit"
-                                disabled={!isFormValid}
-                                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Add Server
-                            </button>
+                            <div className="flex justify-between space-x-3 pt-4">
+                                <button
+                                    type="button"
+                                    onClick={onCancel}
+                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!isFormValid}
+                                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    Add Server
+                                </button>
+                            </div>
                         </div>
+
                     </form>
                 </div>
             </div>

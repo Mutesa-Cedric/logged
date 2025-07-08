@@ -60,13 +60,21 @@ export const LogViewer = ({
 
         const handleScroll = () => {
             const { scrollTop, scrollHeight, clientHeight } = container;
-            const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+            const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
             setAutoScroll(isNearBottom);
         };
 
         container.addEventListener('scroll', handleScroll);
         return () => container.removeEventListener('scroll', handleScroll);
     }, []);
+
+    // Force scroll to bottom
+    const scrollToBottom = () => {
+        if (endOfLogsRef.current) {
+            endOfLogsRef.current.scrollIntoView({ behavior: 'smooth' });
+            setAutoScroll(true);
+        }
+    };
 
     const handleStartStreaming = () => {
         if (!connection.connected) {
@@ -149,6 +157,50 @@ export const LogViewer = ({
     const filteredLogs = logs.filter(log =>
         searchTerm === '' || log.data.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    // Get log level from log content
+    const getLogLevel = (content: string): 'error' | 'warn' | 'info' | 'debug' | 'success' | 'default' => {
+        const lower = content.toLowerCase();
+        if (lower.includes('error') || lower.includes('err') || lower.includes('failed') || lower.includes('exception')) return 'error';
+        if (lower.includes('warn') || lower.includes('warning')) return 'warn';
+        if (lower.includes('info') || lower.includes('information')) return 'info';
+        if (lower.includes('debug') || lower.includes('trace')) return 'debug';
+        if (lower.includes('success') || lower.includes('ok') || lower.includes('completed')) return 'success';
+        return 'default';
+    };
+
+    // Highlight search terms in content
+    const highlightSearchTerm = (content: string, term: string): React.ReactElement => {
+        if (!term) return <span>{content}</span>;
+
+        const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+        const parts = content.split(regex);
+
+        return (
+            <span>
+                {parts.map((part, index) =>
+                    regex.test(part) ? (
+                        <mark key={index} className="bg-yellow-300 text-black px-1 rounded">
+                            {part}
+                        </mark>
+                    ) : (
+                        <span key={index}>{part}</span>
+                    )
+                )}
+            </span>
+        );
+    };
+
+    // Format timestamp
+    const formatTimestamp = (timestamp: Date): string => {
+        return new Date(timestamp).toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'short'
+        });
+    };
 
     const commonCommands = [
         'docker logs -f myapp -n 1000',
@@ -282,6 +334,16 @@ export const LogViewer = ({
                         />
                         <span className="text-sm">Auto-scroll</span>
                     </label>
+
+                    <button
+                        onClick={scrollToBottom}
+                        className="px-3 py-1 bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors text-sm flex items-center"
+                    >
+                        <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        Scroll to Bottom
+                    </button>
                 </div>
 
                 <div className="flex items-center space-x-2">
@@ -326,17 +388,58 @@ export const LogViewer = ({
                 ) : (
                     <div
                         ref={logContainerRef}
-                        className="h-full overflow-y-auto bg-black text-green-400 font-mono text-sm p-4"
+                        className="h-full overflow-y-auto bg-gradient-to-b from-gray-50 to-gray-100 border-t"
                     >
-                        {filteredLogs.map((log, index) => (
-                            <div key={index} className="whitespace-pre-wrap break-words">
-                                <span className="text-gray-500 mr-2">
-                                    {new Date(log.timestamp).toLocaleTimeString()}
-                                </span>
-                                {log.data}
-                            </div>
-                        ))}
-                        <div ref={endOfLogsRef} />
+                        <div className="divide-y divide-gray-200">
+                            {filteredLogs.map((log, index) => {
+                                const logLevel = getLogLevel(log.data);
+                                const logLevelStyles = {
+                                    error: 'bg-red-50 border-l-4 border-l-red-500 text-red-900',
+                                    warn: 'bg-yellow-50 border-l-4 border-l-yellow-500 text-yellow-900',
+                                    info: 'bg-blue-50 border-l-4 border-l-blue-500 text-blue-900',
+                                    debug: 'bg-gray-50 border-l-4 border-l-gray-500 text-gray-700',
+                                    success: 'bg-green-50 border-l-4 border-l-green-500 text-green-900',
+                                    default: 'bg-white hover:bg-gray-50 border-l-4 border-l-transparent'
+                                };
+
+                                return (
+                                    <div
+                                        key={index}
+                                        className={`px-4 py-3 transition-colors ${logLevelStyles[logLevel]}`}
+                                    >
+                                        <div className="flex items-start space-x-3">
+                                            {/* Line Number */}
+                                            <div className="flex-shrink-0 w-12 text-xs text-gray-400 font-mono text-right select-none">
+                                                {index + 1}
+                                            </div>
+
+                                            {/* Timestamp */}
+                                            <div className="flex-shrink-0 text-xs text-gray-500 font-mono w-24">
+                                                {formatTimestamp(log.timestamp)}
+                                            </div>
+
+                                            {/* Log Level Badge */}
+                                            {logLevel !== 'default' && (
+                                                <div className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${logLevel === 'error' ? 'bg-red-100 text-red-800' :
+                                                        logLevel === 'warn' ? 'bg-yellow-100 text-yellow-800' :
+                                                            logLevel === 'info' ? 'bg-blue-100 text-blue-800' :
+                                                                logLevel === 'debug' ? 'bg-gray-100 text-gray-800' :
+                                                                    'bg-green-100 text-green-800'
+                                                    }`}>
+                                                    {logLevel}
+                                                </div>
+                                            )}
+
+                                            {/* Log Content */}
+                                            <div className="flex-1 text-sm font-mono whitespace-pre-wrap break-words leading-relaxed">
+                                                {highlightSearchTerm(log.data, searchTerm)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div ref={endOfLogsRef} className="h-4" />
                     </div>
                 )}
             </div>
