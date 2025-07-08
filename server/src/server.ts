@@ -6,6 +6,7 @@ import cookieParser = require('cookie-parser');
 import { createServer } from 'http';
 import serverRoutes from './modules/api/serverRoutes';
 import { SocketService } from './modules/websocket/socketService';
+import { connectDatabase } from './utils/database';
 
 // import { dbConnection } from './utils/dbConnection';
 const PORT = process.env.PORT || 8000;
@@ -33,10 +34,28 @@ app.use(cors({
 //     console.log(err);
 //   });
 
-httpServer.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
-  console.log(`WebSocket server ready for connections`);
-});
+// Initialize database and start server
+connectDatabase()
+  .then((success) => {
+    if (success) {
+      console.log('✅ Database connected successfully');
+    } else {
+      console.warn('⚠️ Database connection failed, running without persistence');
+    }
+
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Server is listening on port ${PORT}`);
+      console.log(`🔌 WebSocket server ready for connections`);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Failed to initialize server:', err);
+    // Start server anyway but without database
+    httpServer.listen(PORT, () => {
+      console.log(`🚀 Server is listening on port ${PORT} (without database)`);
+      console.log(`🔌 WebSocket server ready for connections`);
+    });
+  });
 
 app.use(bodyParser.json());
 app.use(cookieParser());
@@ -50,7 +69,7 @@ app.use((req, res, next) => {
     'GET,HEAD,OPTIONS,POST,PUT,DELETE',
   );
   res.setHeader(
-    'Access-Contxprol-Allow-Headers',
+    'Access-Control-Allow-Headers',
     'Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Authorization',
   );
   next();

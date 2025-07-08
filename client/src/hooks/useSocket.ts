@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { api } from '../lib/api';
 
 interface ServerConnection {
     id: string;
@@ -181,24 +182,15 @@ export const useSocket = () => {
 
     const downloadLogs = async (connectionId: string, command: LogCommand, format: 'txt' | 'json' = 'txt'): Promise<void> => {
         try {
-            const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8000'}/api/servers/download-logs`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    connectionId,
-                    command,
-                    format
-                }),
-                credentials: 'include'
+            const response = await api.post('/servers/download-logs', {
+                connectionId,
+                command,
+                format
+            }, {
+                responseType: 'blob'
             });
 
-            if (!response.ok) {
-                throw new Error('Download failed');
-            }
-
-            const blob = await response.blob();
+            const blob = response.data;
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';

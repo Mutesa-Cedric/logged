@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { api } from '../lib/api';
 
 interface Connection {
     id: string;
@@ -120,24 +121,15 @@ export const LogViewer = ({
                 follow: false
             };
 
-            const response = await fetch(`${import.meta.env.VITE_SERVER_URL || 'http://localhost:8000'}/api/servers/download-logs`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    connectionId: connection.id,
-                    command: logCommand,
-                    format: downloadFormat
-                }),
-                credentials: 'include'
+            const response = await api.post('/servers/download-logs', {
+                connectionId: connection.id,
+                command: logCommand,
+                format: downloadFormat
+            }, {
+                responseType: 'blob'
             });
 
-            if (!response.ok) {
-                throw new Error('Download failed');
-            }
-
-            const blob = await response.blob();
+            const blob = response.data;
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
@@ -421,10 +413,10 @@ export const LogViewer = ({
                                             {/* Log Level Badge */}
                                             {logLevel !== 'default' && (
                                                 <div className={`flex-shrink-0 px-2 py-1 rounded-full text-xs font-medium uppercase tracking-wide ${logLevel === 'error' ? 'bg-red-100 text-red-800' :
-                                                        logLevel === 'warn' ? 'bg-yellow-100 text-yellow-800' :
-                                                            logLevel === 'info' ? 'bg-blue-100 text-blue-800' :
-                                                                logLevel === 'debug' ? 'bg-gray-100 text-gray-800' :
-                                                                    'bg-green-100 text-green-800'
+                                                    logLevel === 'warn' ? 'bg-yellow-100 text-yellow-800' :
+                                                        logLevel === 'info' ? 'bg-blue-100 text-blue-800' :
+                                                            logLevel === 'debug' ? 'bg-gray-100 text-gray-800' :
+                                                                'bg-green-100 text-green-800'
                                                     }`}>
                                                     {logLevel}
                                                 </div>

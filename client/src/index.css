@@ -1,6 +1,31 @@
-@import "tailwindcss";
+@import '@mantine/core/styles.css';
+@import '@mantine/notifications/styles.css';
+@import '@mantine/spotlight/styles.css';
+@import '@mantine/dates/styles.css';
+@import 'tailwindcss';
 
-/* Clerk Component Styling */
+/* Custom styles for the application */
+:root {
+    --logged-primary: #2563eb;
+    --logged-primary-dark: #1d4ed8;
+    --logged-secondary: #9333ea;
+    --logged-secondary-dark: #7e22ce;
+}
+
+/* Log viewer specific styles */
+.log-viewer-container {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.log-line {
+    transition: background-color 0.1s ease;
+}
+
+.log-line:hover {
+    background-color: var(--mantine-color-gray-0);
+}
+
+/* Custom Clerk styling for Mantine integration */
 .cl-rootBox {
     width: 100%;
 }
@@ -17,40 +42,46 @@
 }
 
 .cl-socialButtonsIconButton {
-    border-color: rgb(229 231 235) !important;
+    border: 1px solid var(--mantine-color-gray-3) !important;
     transition: all 0.2s ease !important;
+    border-radius: var(--mantine-radius-md) !important;
 }
 
 .cl-socialButtonsIconButton:hover {
-    border-color: rgb(209 213 219) !important;
-    background-color: rgb(249 250 251) !important;
+    border-color: var(--mantine-color-gray-4) !important;
+    background-color: var(--mantine-color-gray-0) !important;
 }
 
 .cl-formButtonPrimary {
-    background: linear-gradient(to right, rgb(37 99 235), rgb(147 51 234)) !important;
+    background: linear-gradient(135deg, var(--logged-primary), var(--logged-secondary)) !important;
     transition: all 0.2s ease !important;
+    border-radius: var(--mantine-radius-md) !important;
+    font-weight: 600 !important;
 }
 
 .cl-formButtonPrimary:hover {
-    background: linear-gradient(to right, rgb(29 78 216), rgb(126 34 206)) !important;
+    background: linear-gradient(135deg, var(--logged-primary-dark), var(--logged-secondary-dark)) !important;
     transform: translateY(-1px) !important;
+    box-shadow: var(--mantine-shadow-md) !important;
 }
 
 .cl-formFieldInput {
-    border-color: rgb(209 213 219) !important;
+    border: 1px solid var(--mantine-color-gray-3) !important;
     transition: all 0.2s ease !important;
+    border-radius: var(--mantine-radius-md) !important;
 }
 
 .cl-formFieldInput:focus {
-    border-color: rgb(59 130 246) !important;
-    box-shadow: 0 0 0 3px rgb(59 130 246 / 0.1) !important;
+    border-color: var(--logged-primary) !important;
+    box-shadow: 0 0 0 2px rgb(37 99 235 / 0.1) !important;
 }
 
 .cl-footerActionLink {
-    color: rgb(37 99 235) !important;
+    color: var(--logged-primary) !important;
     transition: color 0.2s ease !important;
+    font-weight: 500 !important;
 }
 
 .cl-footerActionLink:hover {
-    color: rgb(29 78 216) !important;
+    color: var(--logged-primary-dark) !important;
 }

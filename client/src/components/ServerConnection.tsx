@@ -264,7 +264,7 @@ export const ServerConnection = ({ onAdd, onCancel, onTest }: ServerConnectionPr
                             </div>
                         )}
 
-                        <div className='pt-4'>
+                        <div className='pt-4 w-full'>
                             <button
                                 type="button"
                                 onClick={handleTest}

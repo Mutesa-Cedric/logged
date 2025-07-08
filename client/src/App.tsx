@@ -1,11 +1,41 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useUser, useAuth } from '@clerk/clerk-react';
+import { useEffect } from 'react';
 import { LandingPage } from './components/LandingPage';
+import { LoginPage, SignUpPage, ConnectionsPage, LogsPage, SettingsPage } from './pages';
 import { Dashboard } from './components/Dashboard';
-import { LoginPage, SignUpPage } from './pages';
+import { AppLayout } from './components/layout/AppLayout';
+import { tokenManager } from './lib/api';
 
 function App() {
-  const { isLoaded, isSignedIn } = useUser();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { getToken } = useAuth();
+
+  // Initialize token when user signs in
+  useEffect(() => {
+    const initializeAuth = async () => {
+      if (isLoaded && isSignedIn) {
+        try {
+          console.log('🔐 Getting token from Clerk...', { userId: user?.id });
+          const token = await getToken();
+          console.log('🔐 Token received:', {
+            hasToken: !!token,
+            tokenLength: token?.length,
+            tokenPreview: token ? `${token.substring(0, 20)}...` : 'No token'
+          });
+          tokenManager.setToken(token);
+        } catch (error) {
+          console.error('❌ Failed to initialize auth token:', error);
+        }
+      } else if (isLoaded && !isSignedIn) {
+        // Clear token when user is not signed in
+        console.log('🔐 Clearing token - user not signed in');
+        tokenManager.setToken(null);
+      }
+    };
+
+    initializeAuth();
+  }, [isLoaded, isSignedIn, getToken, user]);
 
   // Show loading while Clerk is initializing
   if (!isLoaded) {
@@ -48,10 +78,22 @@ function App() {
       />
 
       <Route
+        path="/guest"
+        element={
+          <AppLayout>
+            <Dashboard />
+          </AppLayout>
+        }
+      />
+
+      {/* Protected routes with layout */}
+      <Route
         path="/dashboard"
         element={
           isSignedIn ? (
-            <Dashboard />
+            <AppLayout>
+              <Dashboard />
+            </AppLayout>
           ) : (
             <Navigate to="/login" replace />
           )
@@ -59,8 +101,42 @@ function App() {
       />
 
       <Route
-        path="/guest"
-        element={<Dashboard isGuest={true} />}
+        path="/connections"
+        element={
+          isSignedIn ? (
+            <AppLayout>
+              <ConnectionsPage />
+            </AppLayout>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/logs"
+        element={
+          isSignedIn ? (
+            <AppLayout>
+              <LogsPage />
+            </AppLayout>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/settings"
+        element={
+          isSignedIn ? (
+            <AppLayout>
+              <SettingsPage />
+            </AppLayout>
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
       />
 
       <Route

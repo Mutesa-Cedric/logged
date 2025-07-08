@@ -101,6 +101,35 @@ export class UserService {
     }
 
     /**
+     * Ensure user exists, create with basic info if not
+     */
+    async ensureUserExists(clerkId: string): Promise<User> {
+        try {
+            let user = await this.getUserByClerkId(clerkId);
+
+            if (!user) {
+                // Create user with basic info when they don't exist
+                user = await prisma.user.create({
+                    data: {
+                        clerkId,
+                        email: `${clerkId}@clerk.user`, // Temporary email
+                        firstName: null,
+                        lastName: null,
+                        username: null,
+                        imageUrl: null
+                    }
+                });
+                console.log(`Auto-created user for clerkId: ${clerkId}`);
+            }
+
+            return user;
+        } catch (error) {
+            console.error('Error ensuring user exists:', error);
+            throw new Error('Failed to ensure user exists');
+        }
+    }
+
+    /**
      * Create a new server connection for a user
      */
     async createConnection(
@@ -108,11 +137,8 @@ export class UserService {
         connectionData: CreateConnectionData
     ): Promise<ServerConnection> {
         try {
-            // First get the user
-            const user = await this.getUserByClerkId(clerkId);
-            if (!user) {
-                throw new Error('User not found');
-            }
+            // Ensure user exists, create if needed
+            const user = await this.ensureUserExists(clerkId);
 
             // Validate encrypted data if provided
             if (connectionData.encryptedPassword) {
@@ -174,11 +200,7 @@ export class UserService {
      */
     async getUserConnections(clerkId: string): Promise<ServerConnection[]> {
         try {
-            const user = await this.getUserByClerkId(clerkId);
-            if (!user) {
-                return [];
-            }
-
+            const user = await this.ensureUserExists(clerkId);
             return await prisma.serverConnection.findMany({
                 where: { userId: user.id },
                 orderBy: { updatedAt: 'desc' }
@@ -194,11 +216,7 @@ export class UserService {
      */
     async getConnection(clerkId: string, connectionId: string): Promise<ServerConnection | null> {
         try {
-            const user = await this.getUserByClerkId(clerkId);
-            if (!user) {
-                return null;
-            }
-
+            const user = await this.ensureUserExists(clerkId);
             return await prisma.serverConnection.findFirst({
                 where: {
                     id: connectionId,
@@ -220,10 +238,7 @@ export class UserService {
         updateData: Partial<CreateConnectionData>
     ): Promise<ServerConnection | null> {
         try {
-            const user = await this.getUserByClerkId(clerkId);
-            if (!user) {
-                throw new Error('User not found');
-            }
+            const user = await this.ensureUserExists(clerkId);
 
             // Validate encrypted data if provided
             if (updateData.encryptedPassword) {
@@ -274,10 +289,7 @@ export class UserService {
      */
     async deleteConnection(clerkId: string, connectionId: string): Promise<boolean> {
         try {
-            const user = await this.getUserByClerkId(clerkId);
-            if (!user) {
-                return false;
-            }
+            const user = await this.ensureUserExists(clerkId);
 
             await prisma.serverConnection.delete({
                 where: {
@@ -298,8 +310,7 @@ export class UserService {
      */
     async updateConnectionLastUsed(clerkId: string, connectionId: string): Promise<void> {
         try {
-            const user = await this.getUserByClerkId(clerkId);
-            if (!user) return;
+            const user = await this.ensureUserExists(clerkId);
 
             await prisma.serverConnection.update({
                 where: {
