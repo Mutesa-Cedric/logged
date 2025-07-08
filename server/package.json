@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@types/nodemailer": "^6.4.8",
+    "@types/ssh2": "^1.15.5",
     "bcrypt": "^5.1.0",
     "body-parser": "^1.20.2",
     "cookie-parser": "^1.4.6",
@@ -19,7 +20,9 @@
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.0",
     "mongoose": "^7.0.2",
-    "nodemailer": "^6.9.3"
+    "nodemailer": "^6.9.3",
+    "socket.io": "^4.8.1",
+    "ssh2": "^1.16.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.0",
