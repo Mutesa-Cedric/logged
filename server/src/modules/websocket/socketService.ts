@@ -92,15 +92,51 @@ export class SocketService {
                             }
                         );
                     } else {
-                        // For one-time log retrieval
-                        const logData = await sshService.executeLogCommand(data.connectionId, data.command);
-                        socket.emit('log-data', {
-                            sessionId,
-                            data: logData,
-                            timestamp: new Date()
-                        });
-                        socket.emit('log-stream-ended', { sessionId });
-                        session.active = false;
+                        // For one-time log retrieval - handle both callback and final result
+                        console.log(`Executing non-streaming command: ${data.command.value}`);
+                        let callbackDataReceived = false;
+                        
+                        const logData = await sshService.executeLogCommand(
+                            data.connectionId,
+                            data.command,
+                            (partialData) => {
+                                if (session.active) {
+                                    console.log(`Sending callback data: ${partialData.trim()}`);
+                                    callbackDataReceived = true;
+                                    socket.emit('log-data', {
+                                        sessionId,
+                                        data: partialData,
+                                        timestamp: new Date()
+                                    });
+                                }
+                            }
+                        );
+
+                        // If we have additional data from the resolved promise and didn't get it via callback, send it
+                        if (typeof logData === 'string' && logData.trim() && session.active && !callbackDataReceived) {
+                            console.log(`Sending resolved data: ${logData.trim()}`);
+                            // Split into lines and send each as separate log entry
+                            const lines = logData.split('\n').filter(line => line.trim());
+                            for (const line of lines) {
+                                if (session.active) {
+                                    socket.emit('log-data', {
+                                        sessionId,
+                                        data: line + '\n',
+                                        timestamp: new Date()
+                                    });
+                                }
+                            }
+                        }
+
+                        // small delay to ensure data is sent before closing session
+                        setTimeout(() => {
+                            if (session.active) {
+                                console.log(`Ending session: ${sessionId}`);
+                                socket.emit('log-stream-ended', { sessionId });
+                                session.active = false;
+                                this.activeSessions.delete(sessionId);
+                            }
+                        }, 100);
                     }
                 } catch (error) {
                     socket.emit('log-stream-error', {
@@ -108,6 +144,7 @@ export class SocketService {
                         error: error instanceof Error ? error.message : 'Unknown error'
                     });
                     session.active = false;
+                    this.activeSessions.delete(sessionId);
                 }
             });
 

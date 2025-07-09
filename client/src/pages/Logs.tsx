@@ -4,28 +4,35 @@ import {
     Badge,
     Button,
     Card,
+    Collapse,
     Group,
+    Menu,
     ScrollArea,
+    SegmentedControl,
     Select,
     Stack,
     Switch,
     Text,
     TextInput,
-    Title
+    Title,
+    Tooltip
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
     IconAlertCircle,
+    IconAlertTriangle,
+    IconArrowDown,
+    IconCheck,
+    IconClearAll,
     IconDownload,
     IconFilter,
-    IconPlayerPause,
-    IconPlayerPlay,
     IconRefresh,
     IconSearch,
     IconTerminal2,
+    IconX
 } from '@tabler/icons-react';
 import { useAtom } from 'jotai';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSocket } from '../hooks/useSocket';
 import { useConnections } from '../services/connections';
 import {
@@ -44,9 +51,12 @@ interface LogCommand {
 export const LogsPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
-    const [downloadFormat, setDownloadFormat] = useState<'txt' | 'json'>('txt');
     const [command, setCommand] = useState('docker logs -f myapp -n 1000');
     const [commandType, setCommandType] = useState<'command' | 'file'>('command');
+    const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+    const [isExecuting, setIsExecuting] = useState(false);
+    const [lastError, setLastError] = useState<string | null>(null);
+    const [commandHistory, setCommandHistory] = useState<Array<{ command: string, timestamp: Date, success: boolean, error?: string }>>([]);
 
     // Atoms
     const [activeConnectionId, setActiveConnectionId] = useAtom(activeConnectionIdAtom);
@@ -61,7 +71,8 @@ export const LogsPage = () => {
         activeSession,
         startLogStream,
         stopLogStream,
-        downloadLogs
+        downloadLogs,
+        clearLogs
     } = useSocket();
 
     // Refs
@@ -92,17 +103,186 @@ export const LogsPage = () => {
 
     const activeConnection = connections?.find(conn => conn.id === activeConnectionId);
 
+    // Get log level from log content
+    const getLogLevel = (content: string): 'error' | 'warn' | 'info' | 'debug' | 'default' => {
+        if (!content || typeof content !== 'string') return 'default';
+
+        const lower = content.toLowerCase();
+
+        // Handle system messages first
+        if (lower.startsWith('command info:')) return 'info';
+        if (lower.startsWith('stderr:')) {
+            // STDERR messages can be warnings or errors depending on content
+            const stderrContent = lower.substring(7); // Remove "stderr:" prefix
+            if (stderrContent.includes('error response from daemon') ||
+                stderrContent.includes('no such container') ||
+                stderrContent.includes('permission denied') ||
+                stderrContent.includes('connection refused') ||
+                stderrContent.includes('command not found')) {
+                return 'error';
+            }
+            if (stderrContent.includes('error') || stderrContent.includes('failed') ||
+                stderrContent.includes('exception') || stderrContent.includes('fatal')) {
+                return 'error';
+            }
+            return 'warn'; // Default stderr to warning level
+        }
+        if (lower.startsWith('server error:')) return 'error';
+        if (lower.startsWith('stream error:')) return 'error';
+        if (lower.startsWith('command exited:')) return 'warn';
+
+        // More comprehensive error patterns
+        if (lower.includes('error') || lower.includes('err') || lower.includes('failed') ||
+            lower.includes('exception') || lower.includes('fatal') || lower.includes('panic') ||
+            lower.includes('critical') || lower.match(/\berr\b/)) {
+            return 'error';
+        }
+
+        // Warning patterns
+        if (lower.includes('warn') || lower.includes('warning') || lower.includes('caution') ||
+            lower.includes('deprecated') || lower.match(/\bwarn\b/)) {
+            return 'warn';
+        }
+
+        // Info patterns - be more specific to avoid false positives
+        if (lower.includes('info') || lower.includes('information') || lower.includes('notice') ||
+            lower.match(/\binfo\b/) || lower.includes('log:')) {
+            return 'info';
+        }
+
+        // Debug patterns
+        if (lower.includes('debug') || lower.includes('trace') || lower.includes('verbose') ||
+            lower.match(/\bdebug\b/) || lower.match(/\btrace\b/)) {
+            return 'debug';
+        }
+
+        // Check for common log format patterns
+        if (lower.match(/^\d{4}-\d{2}-\d{2}.*\berror\b/)) return 'error';
+        if (lower.match(/^\d{4}-\d{2}-\d{2}.*\bwarn\b/)) return 'warn';
+        if (lower.match(/^\d{4}-\d{2}-\d{2}.*\binfo\b/)) return 'info';
+        if (lower.match(/^\d{4}-\d{2}-\d{2}.*\bdebug\b/)) return 'debug';
+
+        // Check for syslog patterns
+        if (lower.match(/\[error\]|\berr:/)) return 'error';
+        if (lower.match(/\[warn\]|\bwarn:/)) return 'warn';
+        if (lower.match(/\[info\]|\binfo:/)) return 'info';
+        if (lower.match(/\[debug\]|\bdebug:/)) return 'debug';
+
+        return 'default';
+    };
+
+    // Improved log filtering with debugging
     const filteredLogs = logs.filter(log => {
+        if (!log || !log.data) return false;
+
         const matchesSearch = searchQuery === '' ||
             log.data.toLowerCase().includes(searchQuery.toLowerCase());
 
-        const matchesLevel = selectedLevel === null ||
-            getLogLevel(log.data) === selectedLevel;
+        const logLevel = getLogLevel(log.data);
+        const matchesLevel = selectedLevel === null || selectedLevel === '' ||
+            logLevel === selectedLevel;
 
         return matchesSearch && matchesLevel;
     });
 
-    const handleToggleStreaming = () => {
+    // Debug log levels (only in development)
+    useEffect(() => {
+        if (import.meta.env.DEV && logs.length > 0) {
+            const levelCounts = logs.reduce((acc, log) => {
+                const level = getLogLevel(log.data);
+                acc[level] = (acc[level] || 0) + 1;
+                return acc;
+            }, {} as Record<string, number>);
+            console.log('Log level distribution:', levelCounts);
+        }
+    }, [logs]);
+
+    const handleExecuteOnce = async () => {
+        if (!activeConnectionId) {
+            notifications.show({
+                title: 'No Connection',
+                message: 'Please select a connection first',
+                color: 'orange',
+            });
+            return;
+        }
+
+        if (isExecuting) {
+            notifications.show({
+                title: 'Command In Progress',
+                message: 'Please wait for the current command to finish',
+                color: 'yellow',
+            });
+            return;
+        }
+
+        setIsExecuting(true);
+        setLastError(null);
+
+        try {
+            const logCommand: LogCommand = {
+                type: commandType,
+                value: command,
+                follow: false
+            };
+
+            // Clear previous logs if desired
+            // clearLogs();
+
+            // Show execution notification
+            notifications.show({
+                id: 'command-execution',
+                title: 'Executing Command',
+                message: `Running: ${command}`,
+                color: 'blue',
+                loading: true,
+                autoClose: false,
+            });
+
+            startLogStream(activeConnectionId, logCommand);
+
+            // Add to command history
+            setCommandHistory(prev => [
+                { command, timestamp: new Date(), success: true },
+                ...prev.slice(0, 9) // Keep last 10 commands
+            ]);
+
+            // Clear the notification after a delay
+            setTimeout(() => {
+                notifications.update({
+                    id: 'command-execution',
+                    title: 'Command Sent',
+                    message: 'Check log output below',
+                    color: 'green',
+                    loading: false,
+                    autoClose: 3000,
+                });
+            }, 1000);
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            setLastError(errorMessage);
+
+            // Add failed command to history
+            setCommandHistory(prev => [
+                { command, timestamp: new Date(), success: false, error: errorMessage },
+                ...prev.slice(0, 9)
+            ]);
+
+            notifications.update({
+                id: 'command-execution',
+                title: 'Command Failed',
+                message: errorMessage,
+                color: 'red',
+                loading: false,
+                autoClose: 5000,
+            });
+        } finally {
+            setIsExecuting(false);
+        }
+    };
+
+    const handleToggleStreaming = async () => {
         if (!activeConnectionId) {
             notifications.show({
                 title: 'No Connection',
@@ -115,36 +295,62 @@ export const LogsPage = () => {
         if (isStreaming) {
             stopLogStream(activeSession || undefined);
             setIsStreaming(false);
-        } else {
-            const logCommand: LogCommand = {
-                type: commandType,
-                value: command,
-                follow: true
-            };
-            startLogStream(activeConnectionId, logCommand);
-            setIsStreaming(true);
-        }
-    };
-
-    const handleExecuteOnce = () => {
-        if (!activeConnectionId) {
             notifications.show({
-                title: 'No Connection',
-                message: 'Please select a connection first',
-                color: 'orange',
+                title: 'Stream Stopped',
+                message: 'Log streaming has been stopped',
+                color: 'blue',
+                autoClose: 2000,
             });
-            return;
-        }
+        } else {
+            try {
+                setLastError(null);
+                const logCommand: LogCommand = {
+                    type: commandType,
+                    value: command,
+                    follow: true
+                };
 
-        const logCommand: LogCommand = {
-            type: commandType,
-            value: command,
-            follow: false
-        };
-        startLogStream(activeConnectionId, logCommand);
+                startLogStream(activeConnectionId, logCommand);
+                setIsStreaming(true);
+
+                notifications.show({
+                    title: 'Stream Started',
+                    message: `Streaming: ${command}`,
+                    color: 'green',
+                    autoClose: 3000,
+                });
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+                setLastError(errorMessage);
+                notifications.show({
+                    title: 'Stream Failed',
+                    message: errorMessage,
+                    color: 'red',
+                    autoClose: 5000,
+                });
+            }
+        }
     };
 
-    const handleDownloadLogs = async () => {
+    const retryLastCommand = () => {
+        if (commandHistory.length > 0) {
+            const lastCommand = commandHistory[0];
+            setCommand(lastCommand.command);
+            if (lastCommand.success) {
+                handleExecuteOnce();
+            } else {
+                // For failed commands, just set them but don't auto-execute
+                notifications.show({
+                    title: 'Command Ready',
+                    message: 'Previous command loaded. Click Execute to retry.',
+                    color: 'blue',
+                    autoClose: 3000,
+                });
+            }
+        }
+    };
+
+    const handleDownloadLogs = async (format: 'txt' | 'json') => {
         if (!activeConnectionId) {
             notifications.show({
                 title: 'No Connection',
@@ -155,27 +361,59 @@ export const LogsPage = () => {
         }
 
         try {
+            setDownloadProgress(0);
+
             const logCommand: LogCommand = {
                 type: commandType,
                 value: command,
                 follow: false
             };
-            await downloadLogs(activeConnectionId, logCommand, downloadFormat);
+
             notifications.show({
-                title: 'Download Started',
-                message: 'Log file will be downloaded shortly',
-                color: 'green',
+                id: 'download-starting',
+                title: 'Download Starting',
+                message: 'Preparing log download...',
+                color: 'blue',
+                loading: true,
+                autoClose: false,
             });
+
+            await downloadLogs(activeConnectionId, logCommand, format, (progress) => {
+                setDownloadProgress(progress);
+                notifications.update({
+                    id: 'download-starting',
+                    title: 'Downloading Logs',
+                    message: `Download progress: ${progress}%`,
+                    color: 'blue',
+                    loading: progress < 100,
+                    autoClose: progress === 100 ? 3000 : false,
+                });
+            });
+
+            setDownloadProgress(null);
+            notifications.update({
+                id: 'download-starting',
+                title: 'Download Complete',
+                message: `Log file has been downloaded as ${format.toUpperCase()}`,
+                color: 'green',
+                loading: false,
+                autoClose: 3000,
+            });
+
         } catch (error) {
-            notifications.show({
+            setDownloadProgress(null);
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+            notifications.update({
+                id: 'download-starting',
                 title: 'Download Failed',
-                message: 'Failed to download logs: ' + (error instanceof Error ? error.message : 'Unknown error'),
+                message: errorMessage,
                 color: 'red',
+                loading: false,
+                autoClose: 5000,
             });
         }
     };
-
-
 
     const scrollToBottom = () => {
         if (endOfLogsRef.current) {
@@ -192,15 +430,6 @@ export const LogsPage = () => {
             case 'debug': return 'gray';
             default: return 'gray';
         }
-    };
-
-    const getLogLevel = (content: string): 'error' | 'warn' | 'info' | 'debug' | 'default' => {
-        const lower = content.toLowerCase();
-        if (lower.includes('error') || lower.includes('err') || lower.includes('failed') || lower.includes('exception')) return 'error';
-        if (lower.includes('warn') || lower.includes('warning')) return 'warn';
-        if (lower.includes('info') || lower.includes('information')) return 'info';
-        if (lower.includes('debug') || lower.includes('trace')) return 'debug';
-        return 'default';
     };
 
     const formatTimestamp = (timestamp: Date) => {
@@ -243,8 +472,16 @@ export const LogsPage = () => {
         'tail -f /var/log/syslog'
     ];
 
+    const getCommandStatusIcon = (success: boolean) => {
+        return success ? (
+            <IconCheck size={14} style={{ color: 'var(--mantine-color-green-6)' }} />
+        ) : (
+            <IconX size={14} style={{ color: 'var(--mantine-color-red-6)' }} />
+        );
+    };
+
     return (
-        <Stack gap="lg">
+        <Stack gap="md">
             {/* Header */}
             <Group justify="space-between">
                 <div>
@@ -256,121 +493,181 @@ export const LogsPage = () => {
                         )}
                     </Text>
                 </div>
-                <Group gap="sm">
-                    <Button
+                <Group gap="xs">
+                    <Select
+                        placeholder={connections?.length ? "Select connection" : "No connections available"}
+                        data={connections?.map(conn => ({
+                            value: conn.id,
+                            label: `${conn.name} (${conn.username}@${conn.host})`
+                        })) || []}
+                        value={activeConnectionId}
+                        onChange={setActiveConnectionId}
+                        style={{ minWidth: 200 }}
+                        variant="filled"
+                        size="sm"
+                        disabled={!connections?.length}
+                    />
+                    <Badge
+                        color={socketConnected && activeConnectionId ? 'green' : 'gray'}
                         variant="light"
-                        leftSection={<IconDownload size={16} />}
-                        onClick={handleDownloadLogs}
-                        disabled={!activeConnectionId}
                     >
-                        Download
-                    </Button>
-                    <Button
-                        variant={isStreaming ? 'filled' : 'light'}
-                        color={isStreaming ? 'red' : 'green'}
-                        leftSection={isStreaming ? <IconPlayerPause size={16} /> : <IconPlayerPlay size={16} />}
-                        onClick={handleToggleStreaming}
-                        disabled={!activeConnectionId}
-                    >
-                        {isStreaming ? 'Stop' : 'Start'} Stream
-                    </Button>
+                        {isStreaming ? 'STREAMING' : socketConnected ? 'CONNECTED' : 'OFFLINE'}
+                    </Badge>
+                    {isExecuting && (
+                        <Badge color="blue" variant="light">
+                            EXECUTING
+                        </Badge>
+                    )}
+                    <Text size="xs" c="dimmed">
+                        {filteredLogs.length} / {logs.length} lines
+                    </Text>
                 </Group>
             </Group>
 
-            {/* Connection Status */}
-            <Alert
-                icon={<IconTerminal2 size={16} />}
-                color={socketConnected && activeConnectionId ? 'green' : 'gray'}
-                variant="light"
-            >
-                <Group justify="space-between">
-                    <Text size="sm">
-                        {socketConnected ?
-                            (activeConnectionId ?
-                                `Connected to ${activeConnection?.name || 'server'} - ${isStreaming ? 'streaming live logs' : 'ready to stream'}`
-                                : 'Socket connected - select a connection to view logs'
-                            )
-                            : 'Not connected to socket server'
-                        }
-                    </Text>
-                    <Badge color={socketConnected && activeConnectionId ? 'green' : 'gray'} variant="light">
-                        {isStreaming ? 'LIVE' : socketConnected ? 'READY' : 'OFFLINE'}
-                    </Badge>
-                </Group>
-            </Alert>
+            {/* Error Alert */}
+            {lastError && (
+                <Alert
+                    icon={<IconAlertTriangle size={16} />}
+                    title="Command Error"
+                    color="red"
+                    variant="light"
+                    withCloseButton
+                    onClose={() => setLastError(null)}
+                >
+                    <Text size="sm" mb="xs">{lastError}</Text>
+                    <Group gap="xs">
+                        <Button size="xs" variant="light" leftSection={<IconRefresh size={14} />} onClick={retryLastCommand}>
+                            Retry
+                        </Button>
+                        <Button size="xs" variant="subtle" onClick={() => setLastError(null)}>
+                            Dismiss
+                        </Button>
+                    </Group>
+                </Alert>
+            )}
 
-            {/* Command Input */}
+            {/* Command Bar */}
             <Card shadow="sm" padding="md" radius="md" withBorder>
                 <Stack gap="md">
-                    <Group gap="md">
-                        <Select
-                            placeholder="Select connection"
-                            data={connections?.map(conn => ({
-                                value: conn.id,
-                                label: `${conn.name} (${conn.username}@${conn.host})`
-                            })) || []}
-                            value={activeConnectionId}
-                            onChange={setActiveConnectionId}
-                            style={{ flex: 1 }}
-                        />
-                        <Group gap="sm">
-                            <Switch
+                    <Group justify="space-between">
+                        <Group gap="xs">
+                            <IconTerminal2 size={16} />
+                            <Text size="sm" fw={500}>Command Center</Text>
+                        </Group>
+                        <Group gap="xs">
+                            <SegmentedControl
                                 size="xs"
-                                checked={commandType === 'command'}
-                                onChange={(e) => setCommandType(e.currentTarget.checked ? 'command' : 'file')}
-                                label="Command"
+                                value={commandType}
+                                onChange={(value) => setCommandType(value as 'command' | 'file')}
+                                data={[
+                                    { label: 'Command', value: 'command' },
+                                    { label: 'File', value: 'file' }
+                                ]}
                             />
                         </Group>
                     </Group>
 
-                    <Group gap="sm">
+                    <Group gap="md" align="flex-end">
                         <TextInput
+                            style={{ flex: 1 }}
                             placeholder={commandType === 'command' ? 'docker logs -f myapp -n 1000' : '/var/log/app.log'}
                             value={command}
-                            onChange={(e) => setCommand(e.target.value)}
-                            style={{ flex: 1 }}
+                            onChange={(e) => setCommand(e.currentTarget.value)}
+                            leftSection={<IconTerminal2 size={16} />}
+                            styles={{ input: { fontFamily: 'monospace' } }}
                         />
-                        <Button
-                            variant="light"
-                            size="sm"
-                            onClick={handleExecuteOnce}
-                            disabled={!activeConnectionId || !command}
-                        >
-                            Execute Once
-                        </Button>
+
+                        <Group gap="xs">
+                            <Button
+                                onClick={handleExecuteOnce}
+                                loading={isExecuting}
+                                disabled={!activeConnectionId || !command.trim()}
+                                variant="filled"
+                                size="sm"
+                            >
+                                Execute
+                            </Button>
+
+                            <Button
+                                onClick={handleToggleStreaming}
+                                disabled={!activeConnectionId || !command.trim()}
+                                color={isStreaming ? 'red' : 'blue'}
+                                variant={isStreaming ? 'filled' : 'light'}
+                                size="sm"
+                            >
+                                {isStreaming ? 'Stop Stream' : 'Stream'}
+                            </Button>
+                        </Group>
                     </Group>
 
                     {/* Quick Commands */}
-                    {commandType === 'command' && (
-                        <Group gap="xs">
+                    <Group gap="xs">
+                        <Text size="xs" c="dimmed" style={{ minWidth: 'fit-content' }}>Quick:</Text>
+                        <Group gap={4} style={{ flexWrap: 'wrap' }}>
                             {commonCommands.map((cmd, index) => (
                                 <Button
                                     key={index}
-                                    variant="subtle"
                                     size="xs"
+                                    variant="subtle"
                                     onClick={() => setCommand(cmd)}
+                                    styles={{ root: { fontFamily: 'monospace' } }}
                                 >
-                                    {cmd.length > 30 ? cmd.substring(0, 30) + '...' : cmd}
+                                    {cmd.length > 35 ? cmd.substring(0, 35) + '...' : cmd}
                                 </Button>
                             ))}
                         </Group>
+                    </Group>
+
+                    {/* Command History */}
+                    {commandHistory.length > 0 && (
+                        <Collapse in={true}>
+                            <Stack gap="xs">
+                                <Text size="xs" c="dimmed">Recent Commands:</Text>
+                                <Group gap="xs" style={{ flexWrap: 'wrap' }}>
+                                    {commandHistory.slice(0, 5).map((cmd, index) => (
+                                        <Button
+                                            key={index}
+                                            size="xs"
+                                            variant="subtle"
+                                            color={cmd.success ? 'blue' : 'red'}
+                                            leftSection={getCommandStatusIcon(cmd.success)}
+                                            onClick={() => setCommand(cmd.command)}
+                                            title={cmd.error || `Executed at ${cmd.timestamp.toLocaleTimeString()}`}
+                                            styles={{ root: { fontFamily: 'monospace' } }}
+                                        >
+                                            {cmd.command.length > 30 ? cmd.command.substring(0, 30) + '...' : cmd.command}
+                                        </Button>
+                                    ))}
+                                </Group>
+                            </Stack>
+                        </Collapse>
                     )}
                 </Stack>
             </Card>
 
-            {/* Controls */}
-            <Card shadow="sm" padding="md" radius="md" withBorder>
-                <Group gap="md" align="flex-end">
+            {/* Toolbar */}
+            <Group gap="md" justify="space-between">
+                <Group gap="sm" style={{ flex: 1 }}>
                     <TextInput
                         placeholder="Search logs..."
                         leftSection={<IconSearch size={16} />}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ flex: 1 }}
+                        style={{ minWidth: 200 }}
+                        variant={searchQuery ? 'filled' : 'default'}
+                        rightSection={searchQuery && (
+                            <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                onClick={() => setSearchQuery('')}
+                            >
+                                ×
+                            </ActionIcon>
+                        )}
                     />
 
                     <Select
-                        placeholder="Filter by level"
+                        placeholder="Filter level"
                         leftSection={<IconFilter size={16} />}
                         data={[
                             { value: 'error', label: 'Error' },
@@ -381,10 +678,15 @@ export const LogsPage = () => {
                         value={selectedLevel}
                         onChange={setSelectedLevel}
                         clearable
-                        w={150}
+                        style={{ minWidth: 120 }}
+                        variant={selectedLevel ? 'filled' : 'default'}
+                        rightSection={selectedLevel && (
+                            <Badge size="xs" color="blue" variant="dot" />
+                        )}
                     />
 
                     <Switch
+                        size="sm"
                         label="Auto-scroll"
                         checked={userPreferences.autoScroll}
                         onChange={(e) => setUserPreferences({
@@ -392,28 +694,84 @@ export const LogsPage = () => {
                             autoScroll: e.currentTarget.checked
                         })}
                     />
-
-                    <ActionIcon
-                        variant="light"
-                        color="blue"
-                        onClick={scrollToBottom}
-                    >
-                        <IconRefresh size={16} />
-                    </ActionIcon>
-
-                    <Select
-                        value={downloadFormat}
-                        onChange={(value) => setDownloadFormat(value as 'txt' | 'json')}
-                        data={[
-                            { value: 'txt', label: 'TXT' },
-                            { value: 'json', label: 'JSON' },
-                        ]}
-                        w={80}
-                    />
                 </Group>
-            </Card>
 
-            {/* Log Output */}
+                <Group gap="xs">
+                    {(searchQuery || selectedLevel) && (
+                        <Tooltip label="Clear all filters">
+                            <ActionIcon
+                                variant="light"
+                                color="red"
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setSelectedLevel(null);
+                                }}
+                            >
+                                ×
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+
+                    <Tooltip label="Scroll to bottom">
+                        <ActionIcon
+                            variant="light"
+                            onClick={scrollToBottom}
+                            disabled={userPreferences.autoScroll}
+                        >
+                            <IconArrowDown size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+
+                    <Tooltip label="Clear logs">
+                        <ActionIcon
+                            variant="light"
+                            color="orange"
+                            onClick={clearLogs}
+                            disabled={logs.length === 0}
+                        >
+                            <IconClearAll size={16} />
+                        </ActionIcon>
+                    </Tooltip>
+
+                    <Menu shadow="md" width={200}>
+                        <Menu.Target>
+                            <Tooltip label="Download logs">
+                                <ActionIcon
+                                    variant="light"
+                                    color="blue"
+                                    loading={downloadProgress !== null}
+                                >
+                                    <IconDownload size={16} />
+                                </ActionIcon>
+                            </Tooltip>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Label>
+                                Download Format
+                                {downloadProgress !== null && (
+                                    <Text size="xs" c="dimmed" mt="xs">
+                                        Progress: {downloadProgress}%
+                                    </Text>
+                                )}
+                            </Menu.Label>
+                            <Menu.Item
+                                onClick={() => handleDownloadLogs('txt')}
+                                disabled={!activeConnectionId || downloadProgress !== null}
+                            >
+                                Download as TXT
+                            </Menu.Item>
+                            <Menu.Item
+                                onClick={() => handleDownloadLogs('json')}
+                                disabled={!activeConnectionId || downloadProgress !== null}
+                            >
+                                Download as JSON
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
+                </Group>
+            </Group>
+
+            {/* Log Display */}
             <Card shadow="sm" padding={0} radius="md" withBorder style={{ minHeight: 500 }}>
                 <Group justify="space-between" p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}>
                     <Group gap="xs">
@@ -422,8 +780,8 @@ export const LogsPage = () => {
                             Log Output
                         </Text>
                         {isStreaming && (
-                            <Badge size="xs" color="red" variant="light">
-                                STREAMING
+                            <Badge size="xs" color="red" variant="dot">
+                                LIVE
                             </Badge>
                         )}
                     </Group>
@@ -438,12 +796,23 @@ export const LogsPage = () => {
                             <Group justify="center" py="xl">
                                 <Stack align="center" gap="md">
                                     <IconAlertCircle size={32} color="var(--mantine-color-gray-5)" />
-                                    <Text c="dimmed" size="sm">
-                                        {!activeConnectionId ?
-                                            'Select a connection and enter a command to view logs' :
-                                            'No logs yet. Execute a command or start streaming to see logs'
+                                    <Text c="dimmed" size="sm" ta="center">
+                                        {!connections?.length ?
+                                            'No server connections available. Please add a connection first.' :
+                                            !activeConnectionId ?
+                                                'Select a connection and enter a command to view logs' :
+                                                'No logs yet. Execute a command or start streaming to see logs'
                                         }
                                     </Text>
+                                    {!connections?.length && (
+                                        <Button
+                                            size="sm"
+                                            variant="light"
+                                            onClick={() => window.location.href = '/connections'}
+                                        >
+                                            Add Connection
+                                        </Button>
+                                    )}
                                 </Stack>
                             </Group>
                         ) : (
@@ -455,14 +824,16 @@ export const LogsPage = () => {
                                             {formatTimestamp(log.timestamp)}
                                         </Text>
 
-                                        <Badge
-                                            color={getLevelColor(level)}
-                                            variant="light"
-                                            size="xs"
-                                            style={{ minWidth: 60 }}
-                                        >
-                                            {level.toUpperCase()}
-                                        </Badge>
+                                        {level !== 'default' && (
+                                            <Badge
+                                                color={getLevelColor(level)}
+                                                variant="light"
+                                                size="xs"
+                                                style={{ minWidth: 50 }}
+                                            >
+                                                {level.toUpperCase()}
+                                            </Badge>
+                                        )}
 
                                         <Text size="sm" style={{ flex: 1, fontFamily: 'monospace' }}>
                                             {highlightSearchTerm(log.data, searchQuery)}
@@ -472,35 +843,9 @@ export const LogsPage = () => {
                             })
                         )}
                     </Stack>
-                    <div ref={endOfLogsRef} className="h-4" />
+                    <div ref={endOfLogsRef} />
                 </ScrollArea>
             </Card>
-
-            {/* Quick Stats */}
-            <Group gap="md">
-                <Card shadow="sm" padding="sm" radius="md" withBorder style={{ flex: 1 }}>
-                    <Group justify="space-between">
-                        <Text size="xs" c="dimmed">Total Lines</Text>
-                        <Badge color="blue" variant="light" size="sm">{logs.length}</Badge>
-                    </Group>
-                </Card>
-
-                <Card shadow="sm" padding="sm" radius="md" withBorder style={{ flex: 1 }}>
-                    <Group justify="space-between">
-                        <Text size="xs" c="dimmed">Filtered</Text>
-                        <Badge color="green" variant="light" size="sm">{filteredLogs.length}</Badge>
-                    </Group>
-                </Card>
-
-                <Card shadow="sm" padding="sm" radius="md" withBorder style={{ flex: 1 }}>
-                    <Group justify="space-between">
-                        <Text size="xs" c="dimmed">Session</Text>
-                        <Badge color={activeSession ? 'orange' : 'gray'} variant="light" size="sm">
-                            {activeSession ? 'ACTIVE' : 'IDLE'}
-                        </Badge>
-                    </Group>
-                </Card>
-            </Group>
         </Stack>
     );
 }; 

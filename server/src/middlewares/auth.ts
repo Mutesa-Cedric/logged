@@ -3,11 +3,20 @@ import { Request, Response, NextFunction } from 'express';
 interface AuthenticatedRequest extends Request {
   clerkId?: string;
   user?: any;
+  isGuest?: boolean;
 }
 
 const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
+
+    // Check for guest token
+    if (authHeader === 'Bearer guest-token') {
+      console.log('🔓 Guest user detected');
+      req.clerkId = 'guest-user';
+      req.isGuest = true;
+      return next();
+    }
 
     // Check if authorization header exists and starts with 'Bearer '
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -28,6 +37,7 @@ const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: N
 
       if (payload.sub) {
         req.clerkId = payload.sub;
+        req.isGuest = false;
         next();
       } else {
         return res.status(401).json({ message: 'Unauthorized - Invalid token payload' });
@@ -37,6 +47,7 @@ const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: N
       // In production, this should be a 401 error
       console.warn('Token parsing failed, allowing unauthenticated access for demo');
       req.clerkId = 'demo-user'; // Demo user ID
+      req.isGuest = false;
       next();
     }
   } catch (error) {
@@ -45,5 +56,19 @@ const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: N
   }
 };
 
-export default isAuthenticated;
+// Middleware that requires authenticated (non-guest) users
+const requireAuth = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  await isAuthenticated(req, res, () => {
+    if (req.isGuest) {
+      return res.status(401).json({
+        message: 'This feature requires an account. Please sign up or sign in.',
+        guestNotAllowed: true
+      });
+    }
+    next();
+  });
+};
+
 export { AuthenticatedRequest };
+export default isAuthenticated;
+export { requireAuth };

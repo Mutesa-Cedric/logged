@@ -1,20 +1,31 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useUser, useAuth } from '@clerk/clerk-react';
 import { useEffect } from 'react';
+import { useAtom } from 'jotai';
 import { LandingPage } from './components/LandingPage';
 import { LoginPage, SignUpPage, ConnectionsPage, LogsPage, SettingsPage } from './pages';
 import { Dashboard } from './components/Dashboard';
 import { AppLayout } from './components/layout/AppLayout';
 import { tokenManager } from './lib/api';
+import { isGuestModeAtom } from './store/atoms';
+import { withErrorBoundary } from './components/ErrorBoundary';
 
 function App() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
+  const location = useLocation();
+  const [isGuestMode, setIsGuestMode] = useAtom(isGuestModeAtom);
+
+  // Detect guest mode based on current path
+  useEffect(() => {
+    const isGuestPath = location.pathname.startsWith('/guest');
+    setIsGuestMode(isGuestPath);
+  }, [location.pathname, setIsGuestMode]);
 
   // Initialize token when user signs in
   useEffect(() => {
     const initializeAuth = async () => {
-      if (isLoaded && isSignedIn) {
+      if (isLoaded && isSignedIn && !isGuestMode) {
         try {
           console.log('🔐 Getting token from Clerk...', { userId: user?.id });
           const token = await getToken();
@@ -27,18 +38,18 @@ function App() {
         } catch (error) {
           console.error('❌ Failed to initialize auth token:', error);
         }
-      } else if (isLoaded && !isSignedIn) {
-        // Clear token when user is not signed in
-        console.log('🔐 Clearing token - user not signed in');
-        tokenManager.setToken(null);
+      } else if ((isLoaded && !isSignedIn) || isGuestMode) {
+        // Clear token when user is not signed in or in guest mode
+        console.log('🔐 Clearing token - user not signed in or guest mode');
+        tokenManager.setToken(isGuestMode ? 'guest-token' : null);
       }
     };
 
     initializeAuth();
-  }, [isLoaded, isSignedIn, getToken, user]);
+  }, [isLoaded, isSignedIn, getToken, user, isGuestMode]);
 
-  // Show loading while Clerk is initializing
-  if (!isLoaded) {
+  // Show loading while Clerk is initializing (but not for guest mode)
+  if (!isLoaded && !isGuestMode) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -53,6 +64,12 @@ function App() {
       </div>
     );
   }
+
+  const GuestLayout = ({ children }: { children: React.ReactNode }) => (
+    <AppLayout>
+      {children}
+    </AppLayout>
+  );
 
   return (
     <Routes>
@@ -77,12 +94,49 @@ function App() {
         }
       />
 
+      {/* Guest routes - accessible without authentication */}
       <Route
         path="/guest"
         element={
-          <AppLayout>
+          <GuestLayout>
             <Dashboard />
-          </AppLayout>
+          </GuestLayout>
+        }
+      />
+
+      <Route
+        path="/guest/dashboard"
+        element={
+          <GuestLayout>
+            <Dashboard />
+          </GuestLayout>
+        }
+      />
+
+      <Route
+        path="/guest/connections"
+        element={
+          <GuestLayout>
+            <ConnectionsPage />
+          </GuestLayout>
+        }
+      />
+
+      <Route
+        path="/guest/logs"
+        element={
+          <GuestLayout>
+            <LogsPage />
+          </GuestLayout>
+        }
+      />
+
+      <Route
+        path="/guest/settings"
+        element={
+          <GuestLayout>
+            <SettingsPage />
+          </GuestLayout>
         }
       />
 
@@ -147,4 +201,6 @@ function App() {
   );
 }
 
-export default App;
+const AppWithErrorBoundary = withErrorBoundary(App);
+
+export default AppWithErrorBoundary;

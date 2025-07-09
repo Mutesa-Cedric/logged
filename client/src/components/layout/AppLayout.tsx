@@ -93,26 +93,26 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
         {
             icon: IconDashboard,
             label: 'Dashboard',
-            href: '/dashboard',
+            href: isGuestMode ? '/guest/dashboard' : '/dashboard',
         },
         {
             icon: IconDatabase,
             label: 'Connections',
-            href: '/connections',
+            href: isGuestMode ? '/guest/connections' : '/connections',
             badge: connectionStatus === 'connected' ? '1' : undefined,
             color: connectionStatus === 'connected' ? 'green' : undefined,
         },
         {
             icon: IconTerminal2,
             label: 'Log Viewer',
-            href: '/logs',
+            href: isGuestMode ? '/guest/logs' : '/logs',
             badge: logStreaming ? 'LIVE' : undefined,
             color: logStreaming ? 'red' : undefined,
         },
         {
             icon: IconSettings,
             label: 'Settings',
-            href: '/settings',
+            href: isGuestMode ? '/guest/settings' : '/settings',
         },
     ];
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { api } from '../lib/api';
@@ -64,6 +65,13 @@ export const useSocket = () => {
         newSocket.on('log-stream-error', (data: { sessionId: string, error: string }) => {
             console.error('Log stream error:', data.error);
             setActiveSession(null);
+            
+            // Add error message to logs for user visibility
+            setLogs(prev => [...prev, {
+                sessionId: data.sessionId,
+                data: `STREAM ERROR: ${data.error}`,
+                timestamp: new Date()
+            } as LogEntry]);
         });
 
         newSocket.on('server-connected', (data: { connectionId: string }) => {
@@ -76,6 +84,41 @@ export const useSocket = () => {
 
         newSocket.on('server-connection-error', (data: { connectionId: string, error: string }) => {
             console.error('Server connection error:', data.error);
+        });
+
+        // Handle log errors (stderr messages)
+        newSocket.on('log-error', (data: { connectionId: string, error: string, timestamp: Date }) => {
+            console.warn('Log stderr:', data.error);
+            // Add stderr as a log entry with error type
+            setLogs(prev => [...prev, {
+                sessionId: `error-${data.connectionId}-${Date.now()}`,
+                data: `ERROR: ${data.error}`,
+                timestamp: new Date(data.timestamp)
+            } as LogEntry]);
+        });
+
+        // Handle general server errors
+        newSocket.on('server-error', (data: { connectionId: string, error: string }) => {
+            console.error('Server error:', data.error);
+            // Optionally add to logs or show notification
+            setLogs(prev => [...prev, {
+                sessionId: `server-error-${data.connectionId}-${Date.now()}`,
+                data: `SERVER ERROR: ${data.error}`,
+                timestamp: new Date()
+            } as LogEntry]);
+        });
+
+        // Handle command errors (non-zero exit codes)
+        newSocket.on('command-error', (data: { connectionId: string, code: number, signal: string }) => {
+            console.warn('Command exited with error:', { code: data.code, signal: data.signal });
+            // Add command exit info to logs
+            if (data.code !== 0 && data.code !== null) {
+                setLogs(prev => [...prev, {
+                    sessionId: `cmd-error-${data.connectionId}-${Date.now()}`,
+                    data: `COMMAND EXITED: code=${data.code}, signal=${data.signal}`,
+                    timestamp: new Date()
+                } as LogEntry]);
+            }
         });
 
         setSocket(newSocket);
@@ -180,30 +223,94 @@ export const useSocket = () => {
         setLogs([]);
     };
 
-    const downloadLogs = async (connectionId: string, command: LogCommand, format: 'txt' | 'json' = 'txt'): Promise<void> => {
-        try {
-            const response = await api.post('/servers/download-logs', {
-                connectionId,
-                command,
-                format
-            }, {
-                responseType: 'blob'
-            });
+    const downloadLogs = async (
+        connectionId: string,
+        command: LogCommand,
+        format: 'txt' | 'json' = 'txt',
+        onProgress?: (progress: number) => void
+    ): Promise<void> => {
+        const maxRetries = 3;
+        let attempt = 0;
 
-            const blob = response.data;
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `logs-${connectionId}-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.${format}`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } catch (error) {
-            console.error('Download error:', error);
-            throw error;
-        }
+        const attemptDownload = async (): Promise<void> => {
+            try {
+                // Create AbortController for cancellation
+                const abortController = new AbortController();
+
+                // Set a longer timeout for downloads (5 minutes)
+                const timeoutId = setTimeout(() => {
+                    abortController.abort();
+                }, 300000); // 5 minutes
+
+                const response = await api.post('/servers/download-logs', {
+                    connectionId,
+                    command,
+                    format
+                }, {
+                    responseType: 'blob',
+                    signal: abortController.signal,
+                    timeout: 300000, // 5 minutes
+                    onDownloadProgress: (progressEvent) => {
+                        if (progressEvent.total && onProgress) {
+                            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                            onProgress(progress);
+                        }
+                    }
+                });
+
+                clearTimeout(timeoutId);
+
+                // Handle the blob response
+                const blob = response.data;
+
+                if (!blob || blob.size === 0) {
+                    throw new Error('No data received from server');
+                }
+
+                // Create download
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = `logs-${connectionId}-${new Date().toISOString().slice(0, 19).replace(/[:.]/g, '-')}.${format}`;
+                document.body.appendChild(a);
+                a.click();
+
+                // Cleanup
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                if (onProgress) {
+                    onProgress(100); // Complete
+                }
+
+            } catch (error: any) {
+                attempt++;
+
+                // Handle different error types
+                if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
+                    if (attempt < maxRetries) {
+                        console.log(`Download timeout, retrying... (${attempt}/${maxRetries})`);
+                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+                        return attemptDownload();
+                    } else {
+                        throw new Error('Download timed out after multiple attempts. The log file might be too large.');
+                    }
+                } else if (error.response?.status === 500 && attempt < maxRetries) {
+                    console.log(`Server error, retrying... (${attempt}/${maxRetries})`);
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+                    return attemptDownload();
+                } else {
+                    console.error('Download error:', error);
+                    const errorMessage = error.response?.data?.error ||
+                        error.message ||
+                        'Failed to download logs';
+                    throw new Error(errorMessage);
+                }
+            }
+        };
+
+        return attemptDownload();
     };
 
     return {

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { sshService, ServerConnection as SSHConnection, LogCommand } from '../ssh/sshService';
 import { userService } from '../database/userService';
-import isAuthenticated, { AuthenticatedRequest } from '../../middlewares/auth';
+import isAuthenticated, { AuthenticatedRequest, requireAuth } from '../../middlewares/auth';
 
 const router = Router();
 
@@ -15,13 +15,13 @@ router.get('/health', (req, res) => {
     });
 });
 
-// Apply authentication middleware to all other routes
+// Apply basic authentication middleware to all other routes (allows guests)
 router.use(isAuthenticated);
 
-// CRUD Operations for saved connections
+// CRUD Operations for saved connections - Require authentication (no guests)
 
 // Get all saved connections for user
-router.get('/connections', async (req: AuthenticatedRequest, res) => {
+router.get('/connections', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const connections = await userService.getUserConnections(clerkId);
@@ -39,7 +39,7 @@ router.get('/connections', async (req: AuthenticatedRequest, res) => {
 });
 
 // Get a specific connection
-router.get('/connections/:id', async (req: AuthenticatedRequest, res) => {
+router.get('/connections/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const { id } = req.params;
@@ -66,7 +66,7 @@ router.get('/connections/:id', async (req: AuthenticatedRequest, res) => {
 });
 
 // Create a new connection
-router.post('/connections', async (req: AuthenticatedRequest, res) => {
+router.post('/connections', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const connectionData = req.body;
@@ -94,7 +94,7 @@ router.post('/connections', async (req: AuthenticatedRequest, res) => {
 });
 
 // Update a connection
-router.put('/connections/:id', async (req: AuthenticatedRequest, res) => {
+router.put('/connections/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const { id } = req.params;
@@ -122,7 +122,7 @@ router.put('/connections/:id', async (req: AuthenticatedRequest, res) => {
 });
 
 // Delete a connection
-router.delete('/connections/:id', async (req: AuthenticatedRequest, res) => {
+router.delete('/connections/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const { id } = req.params;
@@ -148,12 +148,19 @@ router.delete('/connections/:id', async (req: AuthenticatedRequest, res) => {
     }
 });
 
-// SSH Operations (updated to work with saved connections)
+// SSH Operations (works for both authenticated users and guests)
 
-// Test connection (works with both saved and unsaved)
+// Test connection (works with both saved and unsaved connections)
 router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
     try {
         const connection: SSHConnection = req.body;
+
+        console.log('🔍 Testing connection:', {
+            host: connection.host,
+            username: connection.username,
+            port: connection.port,
+            isGuest: req.isGuest
+        });
 
         // Validate required fields
         if (!connection.host || !connection.username || !connection.port) {
@@ -171,6 +178,7 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
             message: isConnected ? 'Connection successful' : 'Connection failed'
         });
     } catch (error) {
+        console.error('Test connection error:', error);
         res.status(500).json({
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error'
@@ -178,8 +186,8 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
     }
 });
 
-// Connect to server using saved connection
-router.post('/connect/:connectionId', async (req: AuthenticatedRequest, res) => {
+// Connect to server using saved connection (authenticated users only)
+router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const { connectionId } = req.params;
@@ -197,21 +205,84 @@ router.post('/connect/:connectionId', async (req: AuthenticatedRequest, res) => 
         let password: string | undefined;
         if (savedConnection.encryptedPassword) {
             try {
-                // For demo purposes, decrypt the simple base64 format: "encryptedData:salt"
-                const [encryptedData, salt] = savedConnection.encryptedPassword.split(':');
-                if (salt === 'demo-salt') {
-                    // Simple base64 decoding for demo
-                    password = Buffer.from(encryptedData, 'base64').toString();
+                // Check if it's the old demo format first (for backward compatibility)
+                if (savedConnection.encryptedPassword.includes(':')) {
+                    const [encryptedData, salt] = savedConnection.encryptedPassword.split(':');
+                    if (salt === 'demo-salt') {
+                        // Simple base64 decoding for demo/legacy data
+                        password = Buffer.from(encryptedData, 'base64').toString();
+                        console.log('⚠️ Using legacy demo decryption - consider migrating to proper AES');
+                    } else {
+                        // Proper AES decryption for production
+                        // Note: In a real implementation, you'd need the user's master key
+                        // For now, we'll assume a default master key or retrieve it from session
+                        const masterKey = 'default-master-key'; // TODO: Get from user session
+
+                        const { decryptData } = await import('../../utils/encryption');
+                        password = decryptData({
+                            encryptedData,
+                            salt,
+                            masterKey
+                        });
+                        console.log('✅ Using proper AES decryption');
+                    }
                 } else {
-                    // TODO: Implement proper AES decryption for production
-                    console.warn('AES decryption not implemented yet');
+                    console.warn('Invalid encrypted password format - missing salt');
                 }
             } catch (error) {
                 console.error('Password decryption failed:', error);
                 return res.status(500).json({
                     success: false,
-                    error: 'Failed to decrypt connection credentials'
+                    error: 'Failed to decrypt connection credentials. Please re-enter your credentials.'
                 });
+            }
+        }
+
+        // Decrypt private key if available
+        let privateKey: string | undefined;
+        if (savedConnection.encryptedPrivateKey) {
+            try {
+                if (savedConnection.encryptedPrivateKey.includes(':')) {
+                    const [encryptedData, salt] = savedConnection.encryptedPrivateKey.split(':');
+                    if (salt === 'demo-salt') {
+                        privateKey = Buffer.from(encryptedData, 'base64').toString();
+                    } else {
+                        const masterKey = 'default-master-key'; // TODO: Get from user session
+                        const { decryptData } = await import('../../utils/encryption');
+                        privateKey = decryptData({
+                            encryptedData,
+                            salt,
+                            masterKey
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Private key decryption failed:', error);
+                // Continue without private key rather than failing
+            }
+        }
+
+        // Decrypt passphrase if available
+        let passphrase: string | undefined;
+        if (savedConnection.encryptedPassphrase) {
+            try {
+                if (savedConnection.encryptedPassphrase.includes(':')) {
+                    const [encryptedData, salt] = savedConnection.encryptedPassphrase.split(':');
+                    if (salt === 'demo-salt') {
+                        passphrase = Buffer.from(encryptedData, 'base64').toString();
+                    } else {
+                        const masterKey = 'default-master-key'; // TODO: Get from user session
+                        const { decryptData } = await import('../../utils/encryption');
+                        passphrase = decryptData({
+                            encryptedData,
+                            salt,
+                            masterKey
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Passphrase decryption failed:', error);
+                // Continue without passphrase rather than failing
             }
         }
 
@@ -222,7 +293,9 @@ router.post('/connect/:connectionId', async (req: AuthenticatedRequest, res) => 
             host: savedConnection.host,
             port: savedConnection.port,
             username: savedConnection.username,
-            password: password, // Now properly decrypted
+            password: password,
+            privateKey: privateKey,
+            passphrase: passphrase,
         };
 
         // Check if already connected
@@ -253,7 +326,7 @@ router.post('/connect/:connectionId', async (req: AuthenticatedRequest, res) => 
     }
 });
 
-// Disconnect from server
+// Disconnect from server (works for both authenticated users and guests)
 router.post('/disconnect/:connectionId', (req, res) => {
     try {
         const { connectionId } = req.params;
@@ -279,7 +352,7 @@ router.post('/disconnect/:connectionId', (req, res) => {
     }
 });
 
-// Get active SSH connections
+// Get active SSH connections (works for both authenticated users and guests)
 router.get('/active-connections', (req, res) => {
     try {
         const connections = sshService.getActiveConnections();
@@ -295,7 +368,7 @@ router.get('/active-connections', (req, res) => {
     }
 });
 
-// Execute log command (one-time)
+// Execute log command (one-time) - works for both authenticated users and guests
 router.post('/execute-command', async (req, res) => {
     try {
         const { connectionId, command }: { connectionId: string, command: LogCommand } = req.body;
@@ -395,47 +468,132 @@ router.post('/download-logs', async (req, res) => {
             });
         }
 
+        // Set longer timeout for the response (5 minutes)
+        req.setTimeout(300000); // 5 minutes
+        res.setTimeout(300000); // 5 minutes
+
+        console.log(`Starting log download for connection ${connectionId} with command: ${command.value}`);
+
         // Ensure it's not a streaming command for download
         const downloadCommand = { ...command, follow: false };
-        const result = await sshService.executeLogCommand(connectionId, downloadCommand);
+
+        let result: string | void;
+        try {
+            result = await sshService.executeLogCommand(connectionId, downloadCommand);
+        } catch (sshError) {
+            console.error('SSH command execution failed:', sshError);
+            return res.status(500).json({
+                success: false,
+                error: `Command execution failed: ${sshError instanceof Error ? sshError.message : 'Unknown SSH error'}`
+            });
+        }
 
         if (typeof result !== 'string') {
             return res.status(500).json({
                 success: false,
-                error: 'No data received'
+                error: 'No data received from command execution'
+            });
+        }
+
+        if (!result || result.trim().length === 0) {
+            return res.status(404).json({
+                success: false,
+                error: 'No log data found for the specified command'
             });
         }
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `logs-${connectionId}-${timestamp}`;
 
+        console.log(`Log data retrieved: ${result.length} characters, format: ${format}`);
+
+        // Set appropriate headers for download
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Pragma', 'no-cache');
+
         if (format === 'json') {
-            const jsonData = {
-                connectionId,
-                command: downloadCommand,
-                timestamp: new Date(),
-                logs: result.split('\n').map((line, index) => ({
+            const logs = result.split('\n')
+                .filter(line => line.trim().length > 0)
+                .map((line, index) => ({
                     lineNumber: index + 1,
                     content: line,
-                    timestamp: new Date()
-                }))
+                    timestamp: new Date(),
+                    level: getLogLevel(line)
+                }));
+
+            const jsonData = {
+                metadata: {
+                    connectionId,
+                    command: downloadCommand,
+                    exportTimestamp: new Date(),
+                    totalLines: logs.length,
+                    format: 'json'
+                },
+                logs
             };
 
-            res.setHeader('Content-Type', 'application/json');
+            const jsonString = JSON.stringify(jsonData, null, 2);
+
+            res.setHeader('Content-Type', 'application/json; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}.json"`);
-            res.send(JSON.stringify(jsonData, null, 2));
+            res.setHeader('Content-Length', Buffer.byteLength(jsonString, 'utf8'));
+            res.send(jsonString);
         } else {
-            res.setHeader('Content-Type', 'text/plain');
+            // Add metadata header for txt format
+            const header = `# Log Export\n# Connection: ${connectionId}\n# Command: ${downloadCommand.value}\n# Export Time: ${new Date().toISOString()}\n# Total Lines: ${result.split('\n').length}\n\n`;
+            const content = header + result;
+
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
             res.setHeader('Content-Disposition', `attachment; filename="${filename}.txt"`);
-            res.send(result);
+            res.setHeader('Content-Length', Buffer.byteLength(content, 'utf8'));
+            res.send(content);
         }
+
+        console.log(`Log download completed successfully: ${filename}.${format}`);
+
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: error instanceof Error ? error.message : 'Download failed'
-        });
+        console.error('Download logs error:', error);
+
+        // Check if response was already sent
+        if (!res.headersSent) {
+            const errorMessage = error instanceof Error ? error.message : 'Download failed';
+            res.status(500).json({
+                success: false,
+                error: errorMessage
+            });
+        }
     }
 });
+
+// Helper function for log level detection (same as client-side)
+function getLogLevel(content: string): 'error' | 'warn' | 'info' | 'debug' | 'default' {
+    if (!content || typeof content !== 'string') return 'default';
+
+    const lower = content.toLowerCase();
+
+    if (lower.includes('error') || lower.includes('err') || lower.includes('failed') ||
+        lower.includes('exception') || lower.includes('fatal') || lower.includes('panic') ||
+        lower.includes('critical') || lower.match(/\berr\b/) || lower.includes('stderr')) {
+        return 'error';
+    }
+
+    if (lower.includes('warn') || lower.includes('warning') || lower.includes('caution') ||
+        lower.includes('deprecated') || lower.match(/\bwarn\b/)) {
+        return 'warn';
+    }
+
+    if (lower.includes('info') || lower.includes('information') || lower.includes('notice') ||
+        lower.match(/\binfo\b/) || lower.includes('log:')) {
+        return 'info';
+    }
+
+    if (lower.includes('debug') || lower.includes('trace') || lower.includes('verbose') ||
+        lower.match(/\bdebug\b/) || lower.match(/\btrace\b/)) {
+        return 'debug';
+    }
+
+    return 'default';
+}
 
 const serverRoutes = router;
 export default serverRoutes;

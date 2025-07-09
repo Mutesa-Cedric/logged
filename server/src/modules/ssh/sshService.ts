@@ -82,10 +82,14 @@ export class SSHService extends EventEmitter {
 
         return new Promise((resolve, reject) => {
             let output = '';
+            let isStreaming = logCommand.follow || false;
+            let dataReceived = false;
 
             const command = logCommand.type === 'command'
                 ? logCommand.value
                 : `tail ${logCommand.follow ? '-f' : ''} ${logCommand.value}`;
+
+            console.log(`Executing command: ${command} (streaming: ${isStreaming})`);
 
             client.exec(command, (err, stream) => {
                 if (err) {
@@ -93,20 +97,60 @@ export class SSHService extends EventEmitter {
                     return;
                 }
 
+                let streamEnded = false;
+
                 stream.on('close', (code: number, signal: string) => {
-                    if (code !== 0) {
+                    streamEnded = true;
+                    console.log(`Command closed with code: ${code}, signal: ${signal}`);
+
+                    if (code !== 0 && code !== null) {
+                        const errorMessage = code === 1 ? 
+                            'Command failed (exit code 1) - this may be normal for some commands' :
+                            `Command exited with code ${code}`;
+                        
+                        this.emit('logData', {
+                            connectionId,
+                            data: `COMMAND INFO: ${errorMessage}\n`,
+                            timestamp: new Date()
+                        });
+
                         this.emit('commandError', { connectionId, code, signal });
                     }
-                    if (!logCommand.follow) {
-                        resolve(output);
+
+                    if (!isStreaming) {
+                        console.log(`Non-streaming command completed. Data received: ${dataReceived}, Output length: ${output.length}, Output: "${output.trim()}"`);
+                        
+                        if (!dataReceived && output.trim().length === 0) {
+                            let errorMsg = 'No data received from command.';
+                            if (code === 1) {
+                                errorMsg += ' The command may have failed or the resource may not exist.';
+                            } else if (code === 127) {
+                                errorMsg += ' Command not found.';
+                            } else if (code === 126) {
+                                errorMsg += ' Permission denied or command not executable.';
+                            } else if (code !== 0 && code !== null) {
+                                errorMsg += ` Command exited with code ${code}.`;
+                            }
+                            console.log(`Rejecting with error: ${errorMsg}`);
+                            reject(new Error(errorMsg));
+                        } else {
+                            console.log(`Resolving with output: "${output.trim()}"`);
+                            resolve(output);
+                        }
+                    } else {
+                        resolve();
                     }
                 });
 
                 stream.on('data', (data: Buffer) => {
                     const content = data.toString();
                     output += content;
+                    dataReceived = true;
 
-                    if (onData) {
+                    console.log(`SSH data received (${content.length} chars): "${content.trim()}"`);
+
+                    if (onData && !streamEnded) {
+                        console.log(`Calling onData callback with: "${content.trim()}"`);
                         onData(content);
                     }
 
@@ -119,11 +163,61 @@ export class SSHService extends EventEmitter {
 
                 stream.stderr.on('data', (data: Buffer) => {
                     const error = data.toString();
-                    this.emit('logError', {
+                    console.log(`Command stderr: ${error}`);
+
+                    this.emit('logData', {
                         connectionId,
-                        error,
+                        data: `STDERR: ${error}`,
                         timestamp: new Date()
                     });
+
+                    if (onData && !streamEnded) {
+                        onData(`STDERR: ${error}`);
+                    }
+
+                    if (!isStreaming) {
+                        output += `STDERR: ${error}`;
+                        dataReceived = true;
+                    }
+
+                    const lowerError = error.toLowerCase();
+                    const isCriticalError = lowerError.includes('permission denied') || 
+                                          lowerError.includes('connection refused') ||
+                                          lowerError.includes('no such file') ||
+                                          lowerError.includes('command not found') ||
+                                          lowerError.includes('authentication failed') ||
+                                          lowerError.includes('no such container') ||
+                                          lowerError.includes('error response from daemon');
+                    
+                    if (isCriticalError) {
+                        let contextualError = error;
+                        if (lowerError.includes('no such container')) {
+                            contextualError += ' (Container may not exist or may be stopped)';
+                        } else if (lowerError.includes('error response from daemon')) {
+                            contextualError += ' (Docker daemon error - check container name and status)';
+                        }
+                        
+                        this.emit('logError', {
+                            connectionId,
+                            error: contextualError,
+                            timestamp: new Date()
+                        });
+                    }
+                });
+
+                const timeoutDuration = isStreaming ? 30000 : 300000; // 30s for streaming, 5min for downloads
+                const timeoutId = setTimeout(() => {
+                    if (!streamEnded) {
+                        console.log(`Command timeout (${timeoutDuration / 1000}s), ending stream`);
+                        stream.end();
+                        if (!isStreaming && !dataReceived) {
+                            reject(new Error(`Command timed out after ${timeoutDuration / 1000} seconds with no data received`));
+                        }
+                    }
+                }, timeoutDuration);
+
+                stream.on('close', () => {
+                    clearTimeout(timeoutId);
                 });
             });
         });
