@@ -1,3 +1,4 @@
+import { Button } from '@mantine/core';
 import { useState } from 'react';
 
 interface ServerConnectionData {
@@ -265,14 +266,14 @@ export const ServerConnection = ({ onAdd, onCancel, onTest }: ServerConnectionPr
                         )}
 
                         <div className='pt-4 w-full'>
-                            <button
+                            <Button
                                 type="button"
                                 onClick={handleTest}
                                 disabled={!isFormValid || isLoading}
-                                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed w-full"
+                                fullWidth
                             >
                                 {isLoading ? 'Testing...' : 'Test Connection'}
-                            </button>
+                            </Button>
                             <div className="flex justify-between space-x-3 pt-4">
                                 <button
                                     type="button"

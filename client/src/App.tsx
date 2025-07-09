@@ -6,6 +6,7 @@ import { LandingPage } from './components/LandingPage';
 import { LoginPage, SignUpPage, ConnectionsPage, LogsPage, SettingsPage } from './pages';
 import { Dashboard } from './components/Dashboard';
 import { AppLayout } from './components/layout/AppLayout';
+import { AppLoadingScreen } from './components/LoadingScreen';
 import { tokenManager } from './lib/api';
 import { isGuestModeAtom } from './store/atoms';
 import { withErrorBoundary } from './components/ErrorBoundary';
@@ -16,13 +17,11 @@ function App() {
   const location = useLocation();
   const [isGuestMode, setIsGuestMode] = useAtom(isGuestModeAtom);
 
-  // Detect guest mode based on current path
   useEffect(() => {
     const isGuestPath = location.pathname.startsWith('/guest');
     setIsGuestMode(isGuestPath);
   }, [location.pathname, setIsGuestMode]);
 
-  // Initialize token when user signs in
   useEffect(() => {
     const initializeAuth = async () => {
       if (isLoaded && isSignedIn && !isGuestMode) {
@@ -39,8 +38,6 @@ function App() {
           console.error('❌ Failed to initialize auth token:', error);
         }
       } else if ((isLoaded && !isSignedIn) || isGuestMode) {
-        // Clear token when user is not signed in or in guest mode
-        console.log('🔐 Clearing token - user not signed in or guest mode');
         tokenManager.setToken(isGuestMode ? 'guest-token' : null);
       }
     };
@@ -48,20 +45,9 @@ function App() {
     initializeAuth();
   }, [isLoaded, isSignedIn, getToken, user, isGuestMode]);
 
-  // Show loading while Clerk is initializing (but not for guest mode)
   if (!isLoaded && !isGuestMode) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Logged</h2>
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto"></div>
-        </div>
-      </div>
+      <AppLoadingScreen />
     );
   }
 

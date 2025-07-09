@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { useClerk, useUser, useAuth } from '@clerk/clerk-react';
+import { useAuth, useClerk, useUser } from '@clerk/clerk-react';
 import {
     ActionIcon,
     AppShell,
@@ -14,7 +14,8 @@ import {
     Stack,
     Text,
     Tooltip,
-    UnstyledButton
+    UnstyledButton,
+    useMantineTheme
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -33,15 +34,16 @@ import {
 import { useAtom } from 'jotai';
 import { useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import { tokenManager } from '../../lib/api';
+import { themeUtils, useTheme } from '../../lib/theme';
 import {
-    activePageAtom,
     connectionStatusAtom,
     isGuestModeAtom,
     logStreamingAtom,
     sidebarCollapsedAtom,
     socketConnectedAtom
 } from '../../store/atoms';
-import { tokenManager } from '../../lib/api';
+import ThemeToggle from '../ThemeToggle';
 
 interface NavItem {
     icon: React.ComponentType<any>;
@@ -60,13 +62,15 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
     const { signOut } = useClerk();
     const { getToken } = useAuth();
     const location = useLocation();
+    const theme = useMantineTheme();
+    const { isDark } = useTheme();
 
     const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom);
-    const [activePage] = useAtom(activePageAtom);
     const [connectionStatus] = useAtom(connectionStatusAtom);
     const [isGuestMode] = useAtom(isGuestModeAtom);
     const [logStreaming] = useAtom(logStreamingAtom);
     const [socketConnected] = useAtom(socketConnectedAtom);
+
 
     useEffect(() => {
         const updateToken = async () => {
@@ -135,13 +139,14 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
     const NavbarContent = () => (
         <Stack gap={0} h="100%">
-            <div style={{ padding: 'var(--mantine-spacing-md)' }}>
+            <div style={{ padding: theme.spacing.md }}>
                 <Group gap="xs">
                     <ActionIcon
                         variant="gradient"
                         gradient={{ from: 'blue', to: 'violet' }}
                         size="md"
                         radius="md"
+                        style={{ transition: themeUtils.transitions.normal }}
                     >
                         <IconCode size={18} />
                     </ActionIcon>
@@ -150,9 +155,10 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                             size="lg"
                             fw={700}
                             style={{
-                                background: 'linear-gradient(135deg, var(--mantine-color-blue-6), var(--mantine-color-violet-6))',
+                                background: themeUtils.getGradient('primary'),
                                 WebkitBackgroundClip: 'text',
                                 WebkitTextFillColor: 'transparent',
+                                transition: themeUtils.transitions.normal,
                             }}
                         >
                             Logged
@@ -178,17 +184,22 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
-                                        gap: 'var(--mantine-spacing-sm)',
-                                        padding: 'var(--mantine-spacing-sm)',
-                                        borderRadius: 'var(--mantine-radius-md)',
-                                        backgroundColor: isActive ? 'var(--mantine-color-blue-light)' : 'transparent',
-                                        color: isActive ? 'var(--mantine-color-blue-6)' : 'var(--mantine-color-gray-7)',
+                                        gap: theme.spacing.sm,
+                                        padding: theme.spacing.sm,
+                                        borderRadius: theme.radius.md,
+                                        backgroundColor: isActive
+                                            ? themeUtils.getThemedColor(theme.colors.blue[0], theme.colors.blue[9], isDark)
+                                            : 'transparent',
+                                        color: isActive
+                                            ? theme.colors.blue[6]
+                                            : themeUtils.getThemedColor(theme.colors.gray[7], theme.colors.gray[3], isDark),
                                         fontWeight: isActive ? 600 : 400,
-                                        transition: 'all 0.2s ease',
+                                        transition: themeUtils.transitions.normal,
                                     }}
                                     onMouseEnter={(e) => {
                                         if (!isActive) {
-                                            e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)';
+                                            e.currentTarget.style.backgroundColor =
+                                                themeUtils.getThemedColor(theme.colors.gray[0], theme.colors.gray[8], isDark);
                                         }
                                     }}
                                     onMouseLeave={(e) => {
@@ -222,7 +233,11 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                 </Stack>
             </ScrollArea>
 
-            <div style={{ padding: 'var(--mantine-spacing-sm)', borderTop: '1px solid var(--mantine-color-gray-2)' }}>
+            <div style={{
+                padding: theme.spacing.sm,
+                borderTop: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                transition: themeUtils.transitions.normal,
+            }}>
                 <Group gap="xs" justify={sidebarCollapsed ? 'center' : 'space-between'}>
                     {!sidebarCollapsed && (
                         <Text size="xs" c="dimmed">
@@ -233,7 +248,8 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                         <IconActivity
                             size={16}
                             style={{
-                                color: socketConnected ? 'var(--mantine-color-green-6)' : 'var(--mantine-color-red-6)',
+                                color: socketConnected ? theme.colors.green[6] : theme.colors.red[6],
+                                transition: themeUtils.transitions.normal,
                             }}
                         />
                     </Tooltip>
@@ -251,6 +267,17 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
             }}
             header={{ height: 60 }}
             padding="md"
+            styles={{
+                navbar: {
+                    borderRight: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                    transition: themeUtils.transitions.normal,
+                },
+                header: {
+                    borderBottom: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                    backdropFilter: 'blur(8px)',
+                    transition: themeUtils.transitions.normal,
+                },
+            }}
         >
             <AppShell.Header>
                 <Group h="100%" px="md" justify="space-between">
@@ -272,6 +299,8 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                                 <IconPlus size={18} />
                             </ActionIcon>
                         </Tooltip>
+
+                        <ThemeToggle variant="menu" size="lg" />
 
                         <Tooltip label="Notifications">
                             <ActionIcon variant="subtle" color="gray" size="lg">

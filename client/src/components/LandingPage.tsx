@@ -1,11 +1,37 @@
 import { useUser } from '@clerk/clerk-react';
+import {
+    Anchor,
+    Badge,
+    Box,
+    Button,
+    Card,
+    Container,
+    Group,
+    SimpleGrid,
+    Stack,
+    Text,
+    ThemeIcon,
+    Title,
+    useMantineTheme
+} from '@mantine/core';
+import {
+    IconArrowRight,
+    IconBolt,
+    IconCode,
+    IconEye,
+    IconSearch,
+    IconShield,
+} from '@tabler/icons-react';
 import { useNavigate } from 'react-router-dom';
+import { themeUtils, useTheme } from '../lib/theme';
+import ThemeToggle from './ThemeToggle';
 
 export const LandingPage = () => {
     const { isSignedIn } = useUser();
     const navigate = useNavigate();
+    const theme = useMantineTheme();
+    const { isDark } = useTheme();
 
-    // Redirect if already signed in
     if (isSignedIn) {
         navigate('/dashboard');
         return null;
@@ -23,124 +49,291 @@ export const LandingPage = () => {
         navigate('/signup');
     };
 
+    const features = [
+        {
+            icon: IconBolt,
+            title: 'Real-time Streaming',
+            description: 'Stream logs in real-time with WebSocket connections. Never miss critical events as they happen.',
+            color: 'blue',
+        },
+        {
+            icon: IconSearch,
+            title: 'Advanced Search',
+            description: 'Powerful search and filtering capabilities with instant results and highlighted matches.',
+            color: 'violet',
+        },
+        {
+            icon: IconShield,
+            title: 'Secure Connections',
+            description: 'Connect securely to your servers with SSH key or password authentication. Your credentials stay safe.',
+            color: 'green',
+        },
+    ];
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-            {/* Navigation */}
-            <nav className="px-6 py-4">
-                <div className="max-w-7xl mx-auto flex justify-between items-center">
-                    <div className="flex items-center space-x-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
-                        <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+        <Box
+            style={{
+                minHeight: '100vh',
+                background: isDark
+                    ? themeUtils.getGradient('dark')
+                    : 'linear-gradient(135deg, #f0f9ff 0%, #ffffff 50%, #faf5ff 100%)',
+                transition: themeUtils.transitions.normal,
+            }}
+        >
+            <Container size="xl">
+                <Group justify="space-between" py="md">
+                    <Group gap="xs">
+                        <ThemeIcon
+                            variant="gradient"
+                            gradient={{ from: 'blue', to: 'violet' }}
+                            size="lg"
+                            radius="md"
+                        >
+                            <IconCode size={20} />
+                        </ThemeIcon>
+                        <Title
+                            order={2}
+                            style={{
+                                background: themeUtils.getGradient('primary'),
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                            }}
+                        >
                             Logged
-                        </span>
-                    </div>
-                    <div className="flex space-x-3">
-                        <button
+                        </Title>
+                    </Group>
+
+                    <Group gap="xs">
+                        <ThemeToggle variant="icon" />
+                        <Button
+                            variant="subtle"
                             onClick={handleSignIn}
-                            className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+                            size="sm"
                         >
                             Sign In
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={handleSignUp}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            size="sm"
+                            gradient={{ from: 'blue', to: 'violet' }}
+                            variant="gradient"
                         >
                             Get Started
-                        </button>
-                    </div>
-                </div>
-            </nav>
+                        </Button>
+                    </Group>
+                </Group>
+            </Container>
 
-            {/* Hero Section */}
-            <div className="max-w-7xl mx-auto px-6 py-20">
-                <div className="text-center">
-                    <h1 className="text-6xl font-bold text-gray-900 mb-6 leading-tight">
-                        Modern Log Viewing
-                        <span className="block bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                            Made Simple
-                        </span>
-                    </h1>
-                    <p className="text-xl text-gray-600 mb-12 max-w-3xl mx-auto leading-relaxed">
-                        Say goodbye to terminal struggles. View, search, and manage your server logs
-                        through a beautiful web interface with real-time streaming and powerful search capabilities.
-                    </p>
+            <Container size="xl" py={80}>
+                <Stack align="center" gap="xl">
+                    <Stack align="center" gap="md" ta="center">
+                        <Title
+                            order={1}
+                            size="4rem"
+                            fw={700}
+                            lh={1.1}
+                            maw={800}
+                            style={{ color: themeUtils.getThemedColor(theme.colors.gray[9], theme.colors.gray[0], isDark) }}
+                        >
+                            Modern Log Viewing{' '}
+                            <Text
+                                component="span"
+                                inherit
+                                style={{
+                                    background: themeUtils.getGradient('primary'),
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                }}
+                            >
+                                Made Simple
+                            </Text>
+                        </Title>
 
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                        <button
+                        <Text
+                            size="xl"
+                            c="dimmed"
+                            maw={600}
+                            ta="center"
+                            lh={1.6}
+                        >
+                            Say goodbye to terminal struggles. View, search, and manage your server logs
+                            through a beautiful web interface with real-time streaming and powerful search capabilities.
+                        </Text>
+                    </Stack>
+
+                    <Group gap="md" justify="center">
+                        <Button
                             onClick={handleSignUp}
-                            className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-semibold rounded-xl hover:from-blue-700 hover:to-purple-700 transition-all transform hover:scale-105 shadow-lg"
+                            size="lg"
+                            gradient={{ from: 'blue', to: 'violet' }}
+                            variant="gradient"
+                            rightSection={<IconArrowRight size={18} />}
+                            style={{
+                                boxShadow: themeUtils.shadows.lg,
+                                transform: 'scale(1)',
+                                transition: themeUtils.transitions.normal,
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.transform = 'scale(1.02)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.transform = 'scale(1)';
+                            }}
                         >
                             Create Free Account
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                             onClick={handleGuestAccess}
-                            className="px-8 py-4 border-2 border-gray-300 text-gray-700 text-lg font-semibold rounded-xl hover:border-gray-400 hover:bg-gray-50 transition-all"
+                            size="lg"
+                            variant="outline"
+                            rightSection={<IconEye size={18} />}
+                            style={{ transition: themeUtils.transitions.normal }}
                         >
                             Continue as Guest
-                        </button>
-                    </div>
+                        </Button>
+                    </Group>
 
-                    <p className="text-sm text-gray-500 mt-4">
+                    <Badge
+                        variant="light"
+                        color="blue"
+                        size="lg"
+                        radius="md"
+                        style={{ marginTop: theme.spacing.sm }}
+                    >
                         Guest mode: Try all features without an account (connections won't be saved)
-                    </p>
-                </div>
-            </div>
+                    </Badge>
+                </Stack>
+            </Container>
 
-            {/* Features Section */}
-            <div className="max-w-7xl mx-auto px-6 py-20">
-                <div className="text-center mb-16">
-                    <h2 className="text-4xl font-bold text-gray-900 mb-4">
-                        Everything you need for log management
-                    </h2>
-                    <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-                        Professional-grade features that make server log management effortless
-                    </p>
-                </div>
+            <Container size="xl" py={80}>
+                <Stack align="center" gap="xl">
+                    <Stack align="center" gap="md" ta="center">
+                        <Title
+                            order={2}
+                            size="3rem"
+                            fw={600}
+                            style={{ color: themeUtils.getThemedColor(theme.colors.gray[9], theme.colors.gray[0], isDark) }}
+                        >
+                            Everything you need for log management
+                        </Title>
+                        <Text
+                            size="xl"
+                            c="dimmed"
+                            maw={600}
+                            ta="center"
+                        >
+                            Professional-grade features that make server log management effortless
+                        </Text>
+                    </Stack>
 
-                <div className="grid md:grid-cols-3 gap-8">
-                    <div className="text-center p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow">
-                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <svg className="w-8 h-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-4">Real-time Streaming</h3>
-                        <p className="text-gray-600">
-                            Stream logs in real-time with WebSocket connections. Never miss critical events as they happen.
-                        </p>
-                    </div>
+                    <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xl" w="100%">
+                        {features.map((feature, index) => (
+                            <Card
+                                key={index}
+                                shadow="md"
+                                padding="xl"
+                                radius="xl"
+                                withBorder
+                                style={{
+                                    transition: themeUtils.transitions.normal,
+                                    transform: 'scale(1)',
+                                    cursor: 'default',
+                                }}
+                                onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(-4px)';
+                                    e.currentTarget.style.boxShadow = themeUtils.shadows.xl;
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = 'translateY(0)';
+                                    e.currentTarget.style.boxShadow = themeUtils.shadows.md;
+                                }}
+                            >
+                                <Stack align="center" gap="md" ta="center">
+                                    <ThemeIcon
+                                        color={feature.color}
+                                        variant="light"
+                                        size="xl"
+                                        radius="xl"
+                                        style={{
+                                            transform: 'scale(1)',
+                                            transition: themeUtils.transitions.normal,
+                                        }}
+                                    >
+                                        <feature.icon size={32} />
+                                    </ThemeIcon>
 
-                    <div className="text-center p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow">
-                        <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <svg className="w-8 h-8 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-4">Advanced Search</h3>
-                        <p className="text-gray-600">
-                            Powerful search and filtering capabilities with instant results and highlighted matches.
-                        </p>
-                    </div>
+                                    <Title order={3} size="h3" fw={600}>
+                                        {feature.title}
+                                    </Title>
 
-                    <div className="text-center p-8 rounded-2xl bg-white shadow-lg hover:shadow-xl transition-shadow">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <svg className="w-8 h-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-xl font-semibold text-gray-900 mb-4">Secure Connections</h3>
-                        <p className="text-gray-600">
-                            Connect securely to your servers with SSH key or password authentication. Your credentials stay safe.
-                        </p>
-                    </div>
-                </div>
-            </div>
+                                    <Text c="dimmed" lh={1.6}>
+                                        {feature.description}
+                                    </Text>
+                                </Stack>
+                            </Card>
+                        ))}
+                    </SimpleGrid>
+                </Stack>
+            </Container>
 
+            <Container size="xl" py={80}>
+                <Card
+                    shadow="xl"
+                    padding="xl"
+                    radius="xl"
+                    style={{
+                        background: themeUtils.getGradient('primary'),
+                        border: 'none',
+                    }}
+                >
+                    <Stack align="center" gap="md" ta="center">
+                        <Title
+                            order={2}
+                            size="2.5rem"
+                            c="white"
+                            fw={600}
+                        >
+                            Ready to simplify your log management?
+                        </Title>
+                        <Text
+                            size="lg"
+                            c="white"
+                            opacity={0.9}
+                            maw={500}
+                        >
+                            Join thousands of developers who have streamlined their workflow with Logged.
+                        </Text>
+                        <Group gap="md" mt="md">
+                            <Button
+                                onClick={handleSignUp}
+                                size="lg"
+                                variant="white"
+                                color="dark"
+                                fw={600}
+                            >
+                                Start Free Trial
+                            </Button>
+                            <Button
+                                onClick={handleGuestAccess}
+                                size="lg"
+                                variant="outline"
+                                c="white"
+                                style={{ borderColor: 'white' }}
+                            >
+                                Try as Guest
+                            </Button>
+                        </Group>
+                    </Stack>
+                </Card>
+            </Container>
 
-        </div>
+            <Container size="xl" py="xl">
+                <Group justify="center" gap="md">
+                    <Text size="sm" c="dimmed" ta="center">
+                        © {new Date().getFullYear()} Logged. Built with ❤️ by <Anchor href="https://github.com/mutesa-cedric" target="_blank">Mutesa Cedric</Anchor>
+                    </Text>
+                </Group>
+            </Container>
+        </Box>
     );
 }; 

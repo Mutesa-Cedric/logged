@@ -15,7 +15,8 @@ import {
     Text,
     TextInput,
     Title,
-    Tooltip
+    Tooltip,
+    useMantineTheme
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -41,6 +42,7 @@ import {
     socketConnectedAtom,
     userPreferencesAtom
 } from '../store/atoms';
+import { useTheme, themeUtils } from '../lib/theme';
 
 interface LogCommand {
     type: 'command' | 'file';
@@ -49,6 +51,8 @@ interface LogCommand {
 }
 
 export const LogsPage = () => {
+    const theme = useMantineTheme();
+    const { isDark } = useTheme();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedLevel, setSelectedLevel] = useState<string | null>(null);
     const [command, setCommand] = useState('docker logs -f myapp -n 1000');
@@ -58,13 +62,13 @@ export const LogsPage = () => {
     const [lastError, setLastError] = useState<string | null>(null);
     const [commandHistory, setCommandHistory] = useState<Array<{ command: string, timestamp: Date, success: boolean, error?: string }>>([]);
 
-    // Atoms
+    const surfaceColors = themeUtils.getSurfaceColors(isDark);
+
     const [activeConnectionId, setActiveConnectionId] = useAtom(activeConnectionIdAtom);
     const [isStreaming, setIsStreaming] = useAtom(logStreamingAtom);
     const [socketConnected] = useAtom(socketConnectedAtom);
     const [userPreferences, setUserPreferences] = useAtom(userPreferencesAtom);
 
-    // Hooks
     const { data: connections } = useConnections();
     const {
         logs,
@@ -75,18 +79,15 @@ export const LogsPage = () => {
         clearLogs
     } = useSocket();
 
-    // Refs
     const logContainerRef = useRef<HTMLDivElement>(null);
     const endOfLogsRef = useRef<HTMLDivElement>(null);
 
-    // Auto-scroll to bottom when new logs arrive
     useEffect(() => {
         if (userPreferences.autoScroll && endOfLogsRef.current) {
             endOfLogsRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [logs, userPreferences.autoScroll]);
 
-    // Check if user scrolled up to disable auto-scroll
     useEffect(() => {
         const container = logContainerRef.current;
         if (!container) return;
@@ -103,13 +104,12 @@ export const LogsPage = () => {
 
     const activeConnection = connections?.find(conn => conn.id === activeConnectionId);
 
-    // Get log level from log content
     const getLogLevel = (content: string): 'error' | 'warn' | 'info' | 'debug' | 'default' => {
         if (!content || typeof content !== 'string') return 'default';
 
         const lower = content.toLowerCase();
 
-        // Handle system messages first
+        // Handle system messages first     
         if (lower.startsWith('command info:')) return 'info';
         if (lower.startsWith('stderr:')) {
             // STDERR messages can be warnings or errors depending on content
@@ -131,38 +131,32 @@ export const LogsPage = () => {
         if (lower.startsWith('stream error:')) return 'error';
         if (lower.startsWith('command exited:')) return 'warn';
 
-        // More comprehensive error patterns
         if (lower.includes('error') || lower.includes('err') || lower.includes('failed') ||
             lower.includes('exception') || lower.includes('fatal') || lower.includes('panic') ||
             lower.includes('critical') || lower.match(/\berr\b/)) {
             return 'error';
         }
 
-        // Warning patterns
         if (lower.includes('warn') || lower.includes('warning') || lower.includes('caution') ||
             lower.includes('deprecated') || lower.match(/\bwarn\b/)) {
             return 'warn';
         }
 
-        // Info patterns - be more specific to avoid false positives
         if (lower.includes('info') || lower.includes('information') || lower.includes('notice') ||
             lower.match(/\binfo\b/) || lower.includes('log:')) {
             return 'info';
         }
 
-        // Debug patterns
         if (lower.includes('debug') || lower.includes('trace') || lower.includes('verbose') ||
             lower.match(/\bdebug\b/) || lower.match(/\btrace\b/)) {
             return 'debug';
         }
 
-        // Check for common log format patterns
         if (lower.match(/^\d{4}-\d{2}-\d{2}.*\berror\b/)) return 'error';
         if (lower.match(/^\d{4}-\d{2}-\d{2}.*\bwarn\b/)) return 'warn';
         if (lower.match(/^\d{4}-\d{2}-\d{2}.*\binfo\b/)) return 'info';
         if (lower.match(/^\d{4}-\d{2}-\d{2}.*\bdebug\b/)) return 'debug';
 
-        // Check for syslog patterns
         if (lower.match(/\[error\]|\berr:/)) return 'error';
         if (lower.match(/\[warn\]|\bwarn:/)) return 'warn';
         if (lower.match(/\[info\]|\binfo:/)) return 'info';
@@ -171,7 +165,6 @@ export const LogsPage = () => {
         return 'default';
     };
 
-    // Improved log filtering with debugging
     const filteredLogs = logs.filter(log => {
         if (!log || !log.data) return false;
 
@@ -185,7 +178,6 @@ export const LogsPage = () => {
         return matchesSearch && matchesLevel;
     });
 
-    // Debug log levels (only in development)
     useEffect(() => {
         if (import.meta.env.DEV && logs.length > 0) {
             const levelCounts = logs.reduce((acc, log) => {
@@ -226,10 +218,6 @@ export const LogsPage = () => {
                 follow: false
             };
 
-            // Clear previous logs if desired
-            // clearLogs();
-
-            // Show execution notification
             notifications.show({
                 id: 'command-execution',
                 title: 'Executing Command',
@@ -241,13 +229,11 @@ export const LogsPage = () => {
 
             startLogStream(activeConnectionId, logCommand);
 
-            // Add to command history
             setCommandHistory(prev => [
                 { command, timestamp: new Date(), success: true },
-                ...prev.slice(0, 9) // Keep last 10 commands
+                ...prev.slice(0, 9)
             ]);
 
-            // Clear the notification after a delay
             setTimeout(() => {
                 notifications.update({
                     id: 'command-execution',
@@ -263,7 +249,6 @@ export const LogsPage = () => {
             const errorMessage = error instanceof Error ? error.message : 'Unknown error';
             setLastError(errorMessage);
 
-            // Add failed command to history
             setCommandHistory(prev => [
                 { command, timestamp: new Date(), success: false, error: errorMessage },
                 ...prev.slice(0, 9)
@@ -339,7 +324,6 @@ export const LogsPage = () => {
             if (lastCommand.success) {
                 handleExecuteOnce();
             } else {
-                // For failed commands, just set them but don't auto-execute
                 notifications.show({
                     title: 'Command Ready',
                     message: 'Previous command loaded. Click Execute to retry.',
@@ -452,7 +436,12 @@ export const LogsPage = () => {
             <span>
                 {parts.map((part, index) =>
                     regex.test(part) ? (
-                        <mark key={index} style={{ backgroundColor: 'var(--mantine-color-yellow-2)', color: 'var(--mantine-color-dark-9)' }}>
+                        <mark key={index} style={{
+                            backgroundColor: themeUtils.getThemedColor(theme.colors.yellow[2], theme.colors.yellow[8], isDark),
+                            color: surfaceColors.text,
+                            borderRadius: theme.radius.xs,
+                            padding: '1px 2px',
+                        }}>
                             {part}
                         </mark>
                     ) : (

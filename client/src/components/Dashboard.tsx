@@ -1,51 +1,53 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+import { useUser } from '@clerk/clerk-react';
 import {
-    Grid,
-    Card,
-    Text,
-    Group,
-    Stack,
     ActionIcon,
-    Button,
-    Badge,
-    ScrollArea,
+    Alert,
     Avatar,
-    UnstyledButton,
-    SimpleGrid,
+    Badge,
+    Button,
+    Card,
     Center,
+    Grid,
+    Group,
+    ScrollArea,
+    SimpleGrid,
+    Skeleton,
+    Stack,
+    Text,
     ThemeIcon,
     Title,
-    Skeleton,
-    Alert,
+    UnstyledButton,
+    useMantineTheme,
 } from '@mantine/core';
 import {
-    IconServer,
-    IconTerminal2,
     IconActivity,
-    IconPlus,
-    IconEye,
-    IconEdit,
+    IconBolt,
+    IconCheck,
     IconChevronRight,
     IconClock,
-    IconCheck,
-    IconX,
-    IconDatabase,
     IconCloud,
-    IconBolt,
+    IconDatabase,
+    IconEdit,
+    IconEye,
     IconInfoCircle,
+    IconPlus,
+    IconServer,
+    IconTerminal2,
+    IconX,
 } from '@tabler/icons-react';
-import { useAtom } from 'jotai';
-import { Link, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { useAtom } from 'jotai';
+import { Link, useNavigate } from 'react-router-dom';
+import { useSocket } from '../hooks/useSocket';
+import { themeUtils, useTheme } from '../lib/theme';
+import { useConnections } from '../services/connections';
 import {
     isGuestModeAtom,
-    socketConnectedAtom,
-    logStreamingAtom
+    logStreamingAtom,
+    socketConnectedAtom
 } from '../store/atoms';
-import { useConnections } from '../services/connections';
-import { useUser } from '@clerk/clerk-react';
-import { useSocket } from '../hooks/useSocket';
 
 dayjs.extend(relativeTime);
 
@@ -104,62 +106,70 @@ interface QuickActionProps {
     disabled?: boolean;
 }
 
-const QuickAction = ({ icon: Icon, title, description, color, onClick, disabled }: QuickActionProps) => (
-    <UnstyledButton
-        onClick={onClick}
-        disabled={disabled}
-        style={{
-            padding: 'var(--mantine-spacing-md)',
-            borderRadius: 'var(--mantine-radius-md)',
-            border: '1px solid var(--mantine-color-gray-2)',
-            transition: 'all 0.2s ease',
-            opacity: disabled ? 0.6 : 1,
-            cursor: disabled ? 'not-allowed' : 'pointer',
-        }}
-        onMouseEnter={(e) => {
-            if (!disabled) {
-                e.currentTarget.style.backgroundColor = 'var(--mantine-color-gray-0)';
-                e.currentTarget.style.borderColor = `var(--mantine-color-${color}-3)`;
-            }
-        }}
-        onMouseLeave={(e) => {
-            if (!disabled) {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.borderColor = 'var(--mantine-color-gray-2)';
-            }
-        }}
-    >
-        <Group gap="md">
-            <ThemeIcon color={color} variant="light" size="lg">
-                <Icon size={20} />
-            </ThemeIcon>
-            <div style={{ flex: 1 }}>
-                <Text size="sm" fw={600}>
-                    {title}
-                </Text>
-                <Text size="xs" c="dimmed">
-                    {description}
-                </Text>
-            </div>
-            <IconChevronRight size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
-        </Group>
-    </UnstyledButton>
-);
+const QuickAction = ({ icon: Icon, title, description, color, onClick, disabled }: QuickActionProps) => {
+    const theme = useMantineTheme();
+    const { isDark } = useTheme();
+
+    return (
+        <UnstyledButton
+            onClick={onClick}
+            disabled={disabled}
+            style={{
+                padding: theme.spacing.md,
+                borderRadius: theme.radius.md,
+                border: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                transition: themeUtils.transitions.normal,
+                opacity: disabled ? 0.6 : 1,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                backgroundColor: 'transparent',
+            }}
+            onMouseEnter={(e) => {
+                if (!disabled) {
+                    e.currentTarget.style.backgroundColor = themeUtils.getThemedColor(theme.colors.gray[0], theme.colors.gray[8], isDark);
+                    e.currentTarget.style.borderColor = theme.colors[color as keyof typeof theme.colors]?.[3] || theme.colors.blue[3];
+                }
+            }}
+            onMouseLeave={(e) => {
+                if (!disabled) {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark);
+                }
+            }}
+        >
+            <Group gap="md">
+                <ThemeIcon color={color} variant="light" size="lg">
+                    <Icon size={20} />
+                </ThemeIcon>
+                <div style={{ flex: 1 }}>
+                    <Text size="sm" fw={600}>
+                        {title}
+                    </Text>
+                    <Text size="xs" c="dimmed">
+                        {description}
+                    </Text>
+                </div>
+                <IconChevronRight size={16} style={{ color: 'var(--mantine-color-gray-5)' }} />
+            </Group>
+        </UnstyledButton>
+    );
+};
 
 export const Dashboard = () => {
     const { user, isLoaded, isSignedIn } = useUser();
     const navigate = useNavigate();
+    const theme = useMantineTheme();
+    const { isDark } = useTheme();
     const [isGuestMode] = useAtom(isGuestModeAtom);
     const [socketConnected] = useAtom(socketConnectedAtom);
     const [logStreaming] = useAtom(logStreamingAtom);
 
-    // Only fetch connections when user is properly loaded and authenticated
+    const surfaceColors = themeUtils.getSurfaceColors(isDark);
+
     const { data: connections, isLoading: connectionsLoading } = useConnections();
     const { logs } = useSocket();
 
     console.log('📊 Dashboard render:', { isLoaded, isSignedIn, isGuestMode, connectionsCount: connections?.length });
 
-    // Calculate stats from real data
     const connectedConnections = connections?.filter(conn => {
         if (conn.lastUsed) {
             const lastUsed = new Date(conn.lastUsed);
@@ -169,7 +179,6 @@ export const Dashboard = () => {
         return false;
     }) || [];
 
-    // Recent activity from real logs and connections
     const recentActivity = [
         ...(connections?.slice(0, 2).map(conn => ({
             id: `conn-${conn.id}`,
@@ -261,7 +270,7 @@ export const Dashboard = () => {
             description: 'Open log viewer',
             color: 'green',
             onClick: () => navigate('/logs'),
-            disabled: false, // Always allow access to logs page
+            disabled: false,
         },
         {
             icon: IconActivity,
@@ -281,7 +290,6 @@ export const Dashboard = () => {
 
     return (
         <Stack gap="lg">
-            {/* Welcome Section */}
             <Card shadow="sm" padding="xl" radius="md" withBorder>
                 <Group justify="space-between" align="flex-start">
                     <div>
@@ -334,16 +342,13 @@ export const Dashboard = () => {
                 </Group>
             </Card>
 
-            {/* Stats Grid */}
             <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
                 {stats.map((stat, index) => (
                     <StatCard key={index} {...stat} />
                 ))}
             </SimpleGrid>
 
-            {/* Main Content Grid */}
             <Grid>
-                {/* Quick Actions */}
                 <Grid.Col span={{ base: 12, md: 6 }}>
                     <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
                         <Group justify="space-between" mb="md">
@@ -363,7 +368,6 @@ export const Dashboard = () => {
                     </Card>
                 </Grid.Col>
 
-                {/* Recent Activity */}
                 <Grid.Col span={{ base: 12, md: 6 }}>
                     <Card shadow="sm" padding="lg" radius="md" withBorder h="100%">
                         <Group justify="space-between" mb="md">
@@ -413,7 +417,6 @@ export const Dashboard = () => {
                     </Card>
                 </Grid.Col>
 
-                {/* Connections Overview */}
                 <Grid.Col span={12}>
                     <Card shadow="sm" padding="lg" radius="md" withBorder>
                         <Group justify="space-between" mb="md">
@@ -448,7 +451,12 @@ export const Dashboard = () => {
                                         new Date(connection.lastUsed) > new Date(Date.now() - 5 * 60 * 1000);
 
                                     return (
-                                        <Group key={connection.id} justify="space-between" p="sm" style={{ border: '1px solid var(--mantine-color-gray-2)', borderRadius: 'var(--mantine-radius-sm)' }}>
+                                        <Group key={connection.id} justify="space-between" p="sm" style={{
+                                            border: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                                            borderRadius: theme.radius.sm,
+                                            backgroundColor: surfaceColors.paper,
+                                            transition: themeUtils.transitions.normal,
+                                        }}>
                                             <Group gap="md">
                                                 <Avatar color="blue" radius="sm">
                                                     <IconServer size={18} />

@@ -10,7 +10,8 @@ import {
     Stack,
     Switch,
     Text,
-    Title
+    Title,
+    useMantineTheme
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -24,13 +25,15 @@ import {
     IconTrash
 } from '@tabler/icons-react';
 import { useState } from 'react';
+import { ThemeActions } from '../components/ThemeToggle';
+import { themeUtils } from '../lib/theme';
 
 export const SettingsPage = () => {
+    const theme = useMantineTheme();
     const [notifications_, setNotifications] = useState(true);
     const [autoConnect, setAutoConnect] = useState(false);
     const [logLevel, setLogLevel] = useState('info');
     const [refreshInterval, setRefreshInterval] = useState(5);
-    const [darkMode, setDarkMode] = useState(false);
     const [autoScroll, setAutoScroll] = useState(true);
 
     const handleSaveSettings = () => {
@@ -70,13 +73,20 @@ export const SettingsPage = () => {
                 <Button
                     leftSection={<IconCheck size={16} />}
                     onClick={handleSaveSettings}
+                    style={{ transition: themeUtils.transitions.normal }}
                 >
                     Save Changes
                 </Button>
             </Group>
 
             {/* General Settings */}
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ transition: themeUtils.transitions.normal }}
+            >
                 <Group gap="sm" mb="md">
                     <IconSettings size={20} />
                     <Title order={3} size="h4">General</Title>
@@ -93,6 +103,8 @@ export const SettingsPage = () => {
                         <Switch
                             checked={notifications_}
                             onChange={(e) => setNotifications(e.currentTarget.checked)}
+                            color="blue"
+                            style={{ transition: themeUtils.transitions.normal }}
                         />
                     </Group>
 
@@ -106,6 +118,8 @@ export const SettingsPage = () => {
                         <Switch
                             checked={autoConnect}
                             onChange={(e) => setAutoConnect(e.currentTarget.checked)}
+                            color="blue"
+                            style={{ transition: themeUtils.transitions.normal }}
                         />
                     </Group>
 
@@ -126,6 +140,11 @@ export const SettingsPage = () => {
                             value={logLevel}
                             onChange={(value) => setLogLevel(value || 'info')}
                             w={120}
+                            styles={{
+                                input: {
+                                    transition: themeUtils.transitions.normal,
+                                },
+                            }}
                         />
                     </Group>
 
@@ -143,29 +162,11 @@ export const SettingsPage = () => {
                             max={60}
                             w={100}
                             suffix="s"
-                        />
-                    </Group>
-                </Stack>
-            </Card>
-
-            {/* Appearance */}
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
-                <Group gap="sm" mb="md">
-                    <IconPalette size={20} />
-                    <Title order={3} size="h4">Appearance</Title>
-                </Group>
-
-                <Stack gap="md">
-                    <Group justify="space-between">
-                        <div>
-                            <Text size="sm" fw={500}>Dark Mode</Text>
-                            <Text size="xs" c="dimmed">
-                                Switch to dark theme
-                            </Text>
-                        </div>
-                        <Switch
-                            checked={darkMode}
-                            onChange={(e) => setDarkMode(e.currentTarget.checked)}
+                            styles={{
+                                input: {
+                                    transition: themeUtils.transitions.normal,
+                                },
+                            }}
                         />
                     </Group>
 
@@ -179,20 +180,62 @@ export const SettingsPage = () => {
                         <Switch
                             checked={autoScroll}
                             onChange={(e) => setAutoScroll(e.currentTarget.checked)}
+                            color="blue"
+                            style={{ transition: themeUtils.transitions.normal }}
                         />
                     </Group>
                 </Stack>
             </Card>
 
+            {/* Appearance */}
+            <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ transition: themeUtils.transitions.normal }}
+            >
+                <Group gap="sm" mb="md">
+                    <IconPalette size={20} />
+                    <Title order={3} size="h4">Appearance</Title>
+                </Group>
+
+                <Stack gap="lg">
+                    <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="blue"
+                        variant="light"
+                        style={{ transition: themeUtils.transitions.normal }}
+                    >
+                        <Text size="sm">
+                            Choose your preferred theme. Auto mode will follow your system preference.
+                        </Text>
+                    </Alert>
+
+                    <ThemeActions />
+                </Stack>
+            </Card>
+
             {/* Security */}
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ transition: themeUtils.transitions.normal }}
+            >
                 <Group gap="sm" mb="md">
                     <IconShield size={20} />
                     <Title order={3} size="h4">Security</Title>
                 </Group>
 
                 <Stack gap="md">
-                    <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+                    <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="blue"
+                        variant="light"
+                        style={{ transition: themeUtils.transitions.normal }}
+                    >
                         <Text size="sm">
                             Your connection credentials are encrypted and stored securely.
                             We recommend using SSH keys instead of passwords when possible.
@@ -215,13 +258,24 @@ export const SettingsPage = () => {
                             ]}
                             defaultValue="30"
                             w={130}
+                            styles={{
+                                input: {
+                                    transition: themeUtils.transitions.normal,
+                                },
+                            }}
                         />
                     </Group>
                 </Stack>
             </Card>
 
             {/* Data Management */}
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ transition: themeUtils.transitions.normal }}
+            >
                 <Group gap="sm" mb="md">
                     <IconDatabase size={20} />
                     <Title order={3} size="h4">Data Management</Title>
@@ -240,6 +294,7 @@ export const SettingsPage = () => {
                             size="xs"
                             leftSection={<IconDownload size={14} />}
                             onClick={handleExportData}
+                            style={{ transition: themeUtils.transitions.normal }}
                         >
                             Export
                         </Button>
@@ -258,6 +313,7 @@ export const SettingsPage = () => {
                             size="xs"
                             leftSection={<IconTrash size={14} />}
                             onClick={handleClearCache}
+                            style={{ transition: themeUtils.transitions.normal }}
                         >
                             Clear
                         </Button>
@@ -265,7 +321,12 @@ export const SettingsPage = () => {
 
                     <Divider />
 
-                    <Alert icon={<IconInfoCircle size={16} />} color="yellow" variant="light">
+                    <Alert
+                        icon={<IconInfoCircle size={16} />}
+                        color="yellow"
+                        variant="light"
+                        style={{ transition: themeUtils.transitions.normal }}
+                    >
                         <Text size="sm" fw={500} mb="xs">Storage Usage</Text>
                         <Group gap="md">
                             <div>
@@ -282,17 +343,24 @@ export const SettingsPage = () => {
             </Card>
 
             {/* About */}
-            <Card shadow="sm" padding="lg" radius="md" withBorder>
+            <Card
+                shadow="sm"
+                padding="lg"
+                radius="md"
+                withBorder
+                style={{ transition: themeUtils.transitions.normal }}
+            >
                 <Stack gap="md">
                     <Group gap="md">
                         <div style={{
                             width: 40,
                             height: 40,
-                            background: 'linear-gradient(135deg, var(--mantine-color-blue-6), var(--mantine-color-violet-6))',
-                            borderRadius: 8,
+                            background: themeUtils.getGradient('primary'),
+                            borderRadius: theme.radius.md,
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            justifyContent: 'center',
+                            transition: themeUtils.transitions.normal,
                         }}>
                             <Text c="white" fw={700} size="lg">L</Text>
                         </div>
@@ -312,6 +380,8 @@ export const SettingsPage = () => {
                         <Badge variant="light" color="green">Mantine</Badge>
                         <Badge variant="light" color="orange">TypeScript</Badge>
                         <Badge variant="light" color="violet">WebSocket</Badge>
+                        <Badge variant="light" color="teal">SSH</Badge>
+                        <Badge variant="light" color="grape">Dark Mode</Badge>
                     </Group>
                 </Stack>
             </Card>
