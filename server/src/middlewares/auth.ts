@@ -9,6 +9,13 @@ interface AuthenticatedRequest extends Request {
 const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
+    
+    console.log('🔍 Auth middleware - received headers:', {
+      authHeader,
+      url: req.url,
+      method: req.method,
+      hasAuth: !!authHeader
+    });
 
     // Check for guest token
     if (authHeader === 'Bearer guest-token') {
@@ -20,6 +27,7 @@ const isAuthenticated = async (req: AuthenticatedRequest, res: Response, next: N
 
     // Check if authorization header exists and starts with 'Bearer '
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth failed: No authorization header or invalid format');
       return res.status(401).json({ message: 'Unauthorized - No token provided' });
     }
 

@@ -32,12 +32,13 @@ export const api = axios.create({
 api.interceptors.request.use(
     (config) => {
         // Add auth token from Clerk if available
-        const token = tokenManager.getToken();
-        console.log('🔑 API Request Debug:', {
-            url: config.url,
-            hasToken: !!token,
-            tokenPreview: token ? `${token.substring(0, 20)}...` : 'No token'
-        });
+        let token = tokenManager.getToken();
+
+        // Safety check: if we're on a guest path and don't have a token, set guest token
+        if (!token && typeof window !== 'undefined' && window.location.pathname.startsWith('/guest')) {
+            token = 'guest-token';
+            tokenManager.setToken(token);
+        }
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
@@ -59,17 +60,9 @@ api.interceptors.response.use(
         const message = (error.response?.data as { message?: string })?.message || error.message;
         const isGuestNotAllowed = (error.response?.data as { guestNotAllowed?: boolean })?.guestNotAllowed;
 
-        console.error('API Error:', {
-            status,
-            message,
-            url: error.config?.url,
-            method: error.config?.method
-        });
-
         // Handle different error types with more specific messages
         switch (status) {
             case 401:
-                console.log('❌ 401 Unauthorized - Token might be invalid or missing');
                 if (isGuestNotAllowed) {
                     notifications.show({
                         title: 'Account Required',
@@ -77,14 +70,15 @@ api.interceptors.response.use(
                         color: 'blue',
                         autoClose: 7000,
                     });
-                } else {
-                    notifications.show({
-                        title: 'Authentication Error',
-                        message: 'Please sign in to continue',
-                        color: 'red',
-                        autoClose: 5000,
-                    });
                 }
+                // else {
+                //     notifications.show({
+                //         title: 'Authentication Error',
+                //         message: 'Please sign in to continue',
+                //         color: 'red',
+                //         autoClose: 5000,
+                //     });
+                // }
                 break;
             case 403:
                 notifications.show({

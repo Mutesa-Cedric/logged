@@ -150,6 +150,59 @@ router.delete('/connections/:id', requireAuth, async (req: AuthenticatedRequest,
 
 // SSH Operations (works for both authenticated users and guests)
 
+// Connect to server directly (for guest users with temporary credentials)
+router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
+    try {
+        const connection: SSHConnection = req.body;
+
+        console.log('🔗 Direct connection request:', {
+            host: connection.host,
+            username: connection.username,
+            port: connection.port,
+            isGuest: req.isGuest
+        });
+
+        // Validate required fields
+        if (!connection.host || !connection.username || !connection.port) {
+            return res.status(400).json({
+                success: false,
+                error: 'Missing required fields: host, username, port'
+            });
+        }
+
+        // Generate a unique connection ID if not provided
+        if (!connection.id) {
+            connection.id = req.isGuest 
+                ? `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                : `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        }
+
+        // Check if already connected
+        if (sshService.isConnected(connection.id)) {
+            return res.json({
+                success: true,
+                message: 'Already connected',
+                connectionId: connection.id
+            });
+        }
+
+        // Connect to the server
+        await sshService.connectToServer(connection);
+
+        res.json({
+            success: true,
+            message: 'Connected successfully',
+            connectionId: connection.id
+        });
+    } catch (error) {
+        console.error('Direct connection error:', error);
+        res.status(500).json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Connection failed'
+        });
+    }
+});
+
 // Test connection (works with both saved and unsaved connections)
 router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
     try {

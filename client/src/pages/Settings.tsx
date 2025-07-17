@@ -73,7 +73,6 @@ export const SettingsPage = () => {
                 <Button
                     leftSection={<IconCheck size={16} />}
                     onClick={handleSaveSettings}
-                    style={{ transition: themeUtils.transitions.normal }}
                 >
                     Save Changes
                 </Button>
@@ -81,7 +80,7 @@ export const SettingsPage = () => {
 
             {/* General Settings */}
             <Card
-                shadow="sm"
+                
                 padding="lg"
                 radius="md"
                 withBorder
@@ -189,11 +188,9 @@ export const SettingsPage = () => {
 
             {/* Appearance */}
             <Card
-                shadow="sm"
                 padding="lg"
                 radius="md"
                 withBorder
-                style={{ transition: themeUtils.transitions.normal }}
             >
                 <Group gap="sm" mb="md">
                     <IconPalette size={20} />
@@ -218,11 +215,9 @@ export const SettingsPage = () => {
 
             {/* Security */}
             <Card
-                shadow="sm"
                 padding="lg"
                 radius="md"
                 withBorder
-                style={{ transition: themeUtils.transitions.normal }}
             >
                 <Group gap="sm" mb="md">
                     <IconShield size={20} />
@@ -270,11 +265,9 @@ export const SettingsPage = () => {
 
             {/* Data Management */}
             <Card
-                shadow="sm"
                 padding="lg"
                 radius="md"
                 withBorder
-                style={{ transition: themeUtils.transitions.normal }}
             >
                 <Group gap="sm" mb="md">
                     <IconDatabase size={20} />
@@ -344,11 +337,9 @@ export const SettingsPage = () => {
 
             {/* About */}
             <Card
-                shadow="sm"
                 padding="lg"
                 radius="md"
                 withBorder
-                style={{ transition: themeUtils.transitions.normal }}
             >
                 <Stack gap="md">
                     <Group gap="md">

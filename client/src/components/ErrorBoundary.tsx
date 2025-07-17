@@ -53,7 +53,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
             return (
                 <div style={{ padding: '2rem', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Card shadow="lg" padding="xl" radius="md" withBorder style={{ maxWidth: '600px', width: '100%' }}>
+                    <Card padding="xl" radius="md" withBorder style={{ maxWidth: '600px', width: '100%' }}>
                         <Stack gap="lg">
                             <Group gap="md">
                                 <IconAlertTriangle size={32} color="var(--mantine-color-red-6)" />

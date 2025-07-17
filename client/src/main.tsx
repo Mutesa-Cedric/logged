@@ -174,6 +174,7 @@ const theme = createTheme({
         root: {
           borderRadius: '12px',
           transition: 'all 0.2s ease',
+          boxShadow: 'none',
         },
       },
     },

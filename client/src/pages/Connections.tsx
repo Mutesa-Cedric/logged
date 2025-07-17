@@ -11,7 +11,6 @@ import {
     Modal,
     NumberInput,
     PasswordInput,
-    SimpleGrid,
     Stack,
     Text,
     TextInput,
@@ -43,6 +42,8 @@ import type {
     ServerConnection,
     CreateConnectionData
 } from '../services/connections';
+import { useAtom } from 'jotai';
+import { isGuestModeAtom } from '../store/atoms';
 
 interface ConnectionForm {
     name: string;
@@ -57,6 +58,7 @@ export const ConnectionsPage = () => {
     const [editingConnection, setEditingConnection] = useState<ServerConnection | null>(null);
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
+    const [isGuestMode] = useAtom(isGuestModeAtom);
 
     const { data: connections, isLoading } = useConnections();
     const createConnection = useCreateConnection();
@@ -90,10 +92,16 @@ export const ConnectionsPage = () => {
                 host: values.host,
                 port: values.port,
                 username: values.username,
-                encryptedPassword: {
-                    encryptedData: btoa(values.password), // Simple base64 for demo
-                    salt: 'demo-salt'
-                }
+                // For guest mode, store plain text password temporarily
+                // For authenticated users, encrypt the password
+                ...(isGuestMode ? {
+                    tempPassword: values.password
+                } : {
+                    encryptedPassword: {
+                        encryptedData: btoa(values.password), // Simple base64 for demo
+                        salt: 'demo-salt'
+                    }
+                })
             };
 
             if (editingConnection) {
@@ -230,149 +238,135 @@ export const ConnectionsPage = () => {
             </Group>
 
             {/* Info Alert */}
-            <Alert icon={<IconInfoCircle size={16} />} color="blue" variant="light">
+            <Alert icon={<IconInfoCircle size={16} />} color={isGuestMode ? "orange" : "blue"} variant="light">
                 <Text size="sm">
-                    Your connections are encrypted and stored securely. You can test connections before saving them.
+                    {isGuestMode 
+                        ? "Guest mode: Connections are stored locally and won't be saved permanently. Sign up to save your connections securely."
+                        : "Your connections are encrypted and stored securely. You can test connections before saving them."
+                    }
                 </Text>
             </Alert>
 
-            {/* Connections Grid */}
+            {/* Connections List */}
             {connections && connections.length > 0 ? (
-                <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="md">
+                <Stack gap="sm">
                     {connections.map((connection) => {
                         const status = getConnectionStatus(connection);
                         return (
-                            <Card key={connection.id} shadow="sm" padding="lg" radius="md" withBorder>
-                                <Group justify="space-between" mb="xs">
-                                    <Group gap="sm">
-                                        <Avatar color="blue" radius="sm" size="md">
-                                            <IconServer size={20} />
+                            <Card key={connection.id} padding="lg" radius="md" withBorder>
+                                <Group justify="space-between" align="center">
+                                    <Group gap="md">
+                                        <Avatar color="blue" size="md" radius="md">
+                                            <IconServer size={18} />
                                         </Avatar>
                                         <div>
-                                            <Text fw={500} size="sm">
+                                            <Text fw={600} size="sm">
                                                 {connection.name}
                                             </Text>
                                             <Text size="xs" c="dimmed">
-                                                {connection.username}@{connection.host}
+                                                {connection.username}@{connection.host}:{connection.port}
                                             </Text>
+                                            {connection.lastUsed && (
+                                                <Text size="xs" c="dimmed">
+                                                    Last used {new Date(connection.lastUsed).toLocaleDateString()}
+                                                </Text>
+                                            )}
                                         </div>
                                     </Group>
 
-                                    <Menu shadow="md" width={200}>
-                                        <Menu.Target>
-                                            <ActionIcon variant="subtle" color="gray">
-                                                <IconDots size={16} />
-                                            </ActionIcon>
-                                        </Menu.Target>
-
-                                        <Menu.Dropdown>
-                                            <Menu.Item
-                                                leftSection={<IconPlugConnected size={14} />}
-                                                onClick={() => handleTestConnection(connection)}
-                                                disabled={testConnection.isPending}
-                                            >
-                                                Test Connection
-                                            </Menu.Item>
-                                            <Menu.Item
-                                                leftSection={<IconEdit size={14} />}
-                                                onClick={() => handleEdit(connection)}
-                                            >
-                                                Edit
-                                            </Menu.Item>
-                                            <Menu.Divider />
-                                            <Menu.Item
-                                                leftSection={<IconTrash size={14} />}
-                                                color="red"
-                                                onClick={() => handleDelete(connection)}
-                                                disabled={deleteConnection.isPending}
-                                            >
-                                                Delete
-                                            </Menu.Item>
-                                        </Menu.Dropdown>
-                                    </Menu>
-                                </Group>
-
-                                <Stack gap="xs" mb="md">
                                     <Group gap="xs">
-                                        <Text size="xs" c="dimmed">Port:</Text>
-                                        <Text size="xs">{connection.port}</Text>
-                                    </Group>
-                                    <Group gap="xs">
-                                        <Text size="xs" c="dimmed">Status:</Text>
                                         <Badge
                                             color={status === 'connected' ? 'green' : 'gray'}
                                             variant="light"
-                                            size="xs"
+                                            size="sm"
                                         >
-                                            {status}
+                                            {status === 'connected' ? 'Active' : 'Inactive'}
                                         </Badge>
-                                    </Group>
-                                    <Group gap="xs">
-                                        <Text size="xs" c="dimmed">Last used:</Text>
-                                        <Text size="xs">
-                                            {connection.lastUsed ?
-                                                new Date(connection.lastUsed).toLocaleDateString() :
-                                                'Never'
-                                            }
-                                        </Text>
-                                    </Group>
-                                </Stack>
+                                        
+                                        <Button
+                                            variant="light"
+                                            size="xs"
+                                            leftSection={<IconPlugConnected size={14} />}
+                                            onClick={() => handleTestConnection(connection)}
+                                            loading={testConnection.isPending}
+                                        >
+                                            Test
+                                        </Button>
+                                        
+                                        <Button
+                                            variant="light"
+                                            size="xs"
+                                            color="blue"
+                                            leftSection={<IconPlugConnected size={14} />}
+                                            onClick={() => handleConnect(connection)}
+                                            loading={connectToServer.isPending}
+                                        >
+                                            Connect
+                                        </Button>
 
-                                <Group gap="xs">
-                                    <Button
-                                        size="xs"
-                                        variant={status === 'connected' ? 'light' : 'filled'}
-                                        color={status === 'connected' ? 'red' : 'blue'}
-                                        leftSection={
-                                            status === 'connected' ?
-                                                <IconPlugConnectedX size={14} /> :
-                                                <IconPlugConnected size={14} />
-                                        }
-                                        onClick={() => status === 'connected' ?
-                                            handleDisconnect(connection) :
-                                            handleConnect(connection)
-                                        }
-                                        loading={connectToServer.isPending || disconnectFromServer.isPending}
-                                        flex={1}
-                                    >
-                                        {status === 'connected' ? 'Disconnect' : 'Connect'}
-                                    </Button>
-                                    <ActionIcon
-                                        variant="light"
-                                        color="gray"
-                                        size="sm"
-                                        onClick={() => handleEdit(connection)}
-                                    >
-                                        <IconEdit size={14} />
-                                    </ActionIcon>
+                                        <Menu width={180}>
+                                            <Menu.Target>
+                                                <ActionIcon variant="subtle" color="gray">
+                                                    <IconDots size={16} />
+                                                </ActionIcon>
+                                            </Menu.Target>
+
+                                            <Menu.Dropdown>
+                                                <Menu.Item
+                                                    leftSection={<IconEdit size={14} />}
+                                                    onClick={() => handleEdit(connection)}
+                                                >
+                                                    Edit Connection
+                                                </Menu.Item>
+                                                <Menu.Item
+                                                    leftSection={<IconPlugConnectedX size={14} />}
+                                                    onClick={() => handleDisconnect(connection)}
+                                                    disabled={disconnectFromServer.isPending}
+                                                >
+                                                    Disconnect
+                                                </Menu.Item>
+                                                <Menu.Divider />
+                                                <Menu.Item
+                                                    leftSection={<IconTrash size={14} />}
+                                                    color="red"
+                                                    onClick={() => handleDelete(connection)}
+                                                    disabled={deleteConnection.isPending}
+                                                >
+                                                    Delete
+                                                </Menu.Item>
+                                            </Menu.Dropdown>
+                                        </Menu>
+                                    </Group>
                                 </Group>
                             </Card>
                         );
                     })}
-                </SimpleGrid>
-            ) : (
-                <Stack align="center" gap="md" py="xl">
-                    <IconServer size={48} color="gray" />
-                    <div style={{ textAlign: 'center' }}>
-                        <Text size="lg" fw={500} mb="xs">
-                            No connections yet
-                        </Text>
-                        <Text size="sm" c="dimmed" mb="md">
-                            Add your first server connection to get started
-                        </Text>
-                        <Button
-                            leftSection={<IconPlus size={16} />}
-                            onClick={() => {
-                                setEditingConnection(null);
-                                form.reset();
-                                setTestResult(null);
-                                open();
-                            }}
-                        >
-                            Add Connection
-                        </Button>
-                    </div>
                 </Stack>
+            ) : (
+                <Card padding="xl" radius="md" withBorder>
+                    <Stack align="center" gap="md" py="xl">
+                        <IconServer size={48} color="gray" />
+                        <div style={{ textAlign: 'center' }}>
+                            <Text fw={500} mb="xs">
+                                No connections yet
+                            </Text>
+                            <Text size="sm" c="dimmed" mb="lg">
+                                Add your first server connection to get started
+                            </Text>
+                            <Button
+                                leftSection={<IconPlus size={16} />}
+                                onClick={() => {
+                                    setEditingConnection(null);
+                                    form.reset();
+                                    setTestResult(null);
+                                    open();
+                                }}
+                            >
+                                Add Connection
+                            </Button>
+                        </div>
+                    </Stack>
+                </Card>
             )}
 
             {/* Add/Edit Connection Modal */}

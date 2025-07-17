@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { useAuth, useClerk, useUser } from '@clerk/clerk-react';
 import {
     ActionIcon,
@@ -15,7 +13,7 @@ import {
     Text,
     Tooltip,
     UnstyledButton,
-    useMantineTheme
+    useMantineTheme,
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
@@ -26,7 +24,6 @@ import {
     IconDatabase,
     IconLogout,
     IconPlus,
-    IconSearch,
     IconSettings,
     IconTerminal2,
     IconUser
@@ -37,6 +34,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { tokenManager } from '../../lib/api';
 import { themeUtils, useTheme } from '../../lib/theme';
 import {
+    authModalAtom,
     connectionStatusAtom,
     isGuestModeAtom,
     logStreamingAtom,
@@ -46,7 +44,7 @@ import {
 import ThemeToggle from '../ThemeToggle';
 
 interface NavItem {
-    icon: React.ComponentType<any>;
+    icon: React.ComponentType<{ size?: number }>;
     label: string;
     href: string;
     badge?: string | number;
@@ -70,6 +68,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
     const [isGuestMode] = useAtom(isGuestModeAtom);
     const [logStreaming] = useAtom(logStreamingAtom);
     const [socketConnected] = useAtom(socketConnectedAtom);
+    const [, setAuthModal] = useAtom(authModalAtom);
 
 
     useEffect(() => {
@@ -288,9 +287,9 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                             size="sm"
                         />
 
-                        <ActionIcon variant="subtle" color="gray" size="lg">
+                        {/* <ActionIcon variant="subtle" color="gray" size="lg">
                             <IconSearch size={18} />
-                        </ActionIcon>
+                        </ActionIcon> */}
                     </Group>
 
                     <Group gap="xs">
@@ -308,7 +307,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                             </ActionIcon>
                         </Tooltip>
 
-                        <Menu shadow="md" width={200}>
+                        <Menu width={200}>
                             <Menu.Target>
                                 <UnstyledButton>
                                     <Group gap="xs">
@@ -351,8 +350,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                                 {isGuestMode && (
                                     <Menu.Item
                                         leftSection={<IconUser size={14} />}
-                                        component={Link}
-                                        to="/login"
+                                        onClick={() => setAuthModal({ open: true, mode: 'signIn' })}
                                         color="blue"
                                     >
                                         Sign In

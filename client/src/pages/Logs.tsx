@@ -178,14 +178,14 @@ export const LogsPage = () => {
         return matchesSearch && matchesLevel;
     });
 
-    useEffect(() => {
+        useEffect(() => {
         if (import.meta.env.DEV && logs.length > 0) {
-            const levelCounts = logs.reduce((acc, log) => {
+            // Track log level distribution for debugging
+            logs.reduce((acc, log) => {
                 const level = getLogLevel(log.data);
                 acc[level] = (acc[level] || 0) + 1;
                 return acc;
             }, {} as Record<string, number>);
-            console.log('Log level distribution:', levelCounts);
         }
     }, [logs]);
 
@@ -761,7 +761,7 @@ export const LogsPage = () => {
             </Group>
 
             {/* Log Display */}
-            <Card shadow="sm" padding={0} radius="md" withBorder style={{ minHeight: 500 }}>
+                                <Card padding={0} radius="md" withBorder style={{ minHeight: 500 }}>
                 <Group justify="space-between" p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}>
                     <Group gap="xs">
                         <IconTerminal2 size={16} />

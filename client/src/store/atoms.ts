@@ -39,6 +39,9 @@ export const socketReconnectingAtom = atom(false);
 // Guest Mode State
 export const isGuestModeAtom = atom(false);
 
+// Auth Modal State
+export const authModalAtom = atom<{ open: boolean; mode: 'signIn' | 'signUp' }>({ open: false, mode: 'signIn' });
+
 // Encryption State (for authenticated users)
 export const masterKeyAtom = atom<string | null>(null);
 export const encryptionEnabledAtom = atom(false);
@@ -66,14 +69,21 @@ export const toggleSidebarAtom = atom(
 
 export const updateUserPreferencesAtom = atom(
     null,
-    (get, set, update: Partial<typeof userPreferencesAtom extends typeof atom<infer T> ? T : never>) => {
+    (get, set, update: Partial<{
+        theme: 'light' | 'dark' | 'auto',
+        autoScroll: boolean,
+        logLevelFilter: 'all' | 'error' | 'warn' | 'info' | 'debug',
+        maxLogLines: number,
+        refreshInterval: number,
+        notifications: boolean,
+    }>) => {
         set(userPreferencesAtom, { ...get(userPreferencesAtom), ...update });
     }
 );
 
 export const setActiveConnectionAtom = atom(
     null,
-    (get, set, connectionId: string | null) => {
+    (_get, set, connectionId: string | null) => {
         set(activeConnectionIdAtom, connectionId);
         if (!connectionId) {
             set(logStreamingAtom, false);
@@ -84,7 +94,7 @@ export const setActiveConnectionAtom = atom(
 
 export const startLogStreamAtom = atom(
     null,
-    (get, set, sessionId: string) => {
+    (_get, set, sessionId: string) => {
         set(logStreamingAtom, true);
         set(logSessionIdAtom, sessionId);
         set(logCountAtom, 0);
@@ -93,7 +103,7 @@ export const startLogStreamAtom = atom(
 
 export const stopLogStreamAtom = atom(
     null,
-    (get, set) => {
+    (_get, set) => {
         set(logStreamingAtom, false);
         set(logSessionIdAtom, null);
     }
@@ -108,7 +118,7 @@ export const incrementLogCountAtom = atom(
 
 export const resetLogCountAtom = atom(
     null,
-    (get, set) => {
+    (_get, set) => {
         set(logCountAtom, 0);
     }
 ); 

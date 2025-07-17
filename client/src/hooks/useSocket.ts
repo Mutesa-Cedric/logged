@@ -41,24 +41,21 @@ export const useSocket = () => {
 
         newSocket.on('connect', () => {
             setConnectionStatus('connected');
-            console.log('Connected to server');
         });
 
         newSocket.on('disconnect', () => {
             setConnectionStatus('disconnected');
-            console.log('Disconnected from server');
         });
 
         newSocket.on('log-data', (data: LogEntry) => {
             setLogs(prev => [...prev, data]);
         });
 
-        newSocket.on('log-stream-ended', (data: { sessionId: string }) => {
-            console.log('Log stream ended:', data.sessionId);
+        newSocket.on('log-stream-ended', () => {
+            // Stream ended
         });
 
-        newSocket.on('log-stream-stopped', (data: { sessionId: string }) => {
-            console.log('Log stream stopped:', data.sessionId);
+        newSocket.on('log-stream-stopped', () => {
             setActiveSession(null);
         });
 
@@ -74,12 +71,12 @@ export const useSocket = () => {
             } as LogEntry]);
         });
 
-        newSocket.on('server-connected', (data: { connectionId: string }) => {
-            console.log('Server connected:', data.connectionId);
+        newSocket.on('server-connected', () => {
+            // Server connected
         });
 
-        newSocket.on('server-disconnected', (data: { connectionId: string }) => {
-            console.log('Server disconnected:', data.connectionId);
+        newSocket.on('server-disconnected', () => {
+            // Server disconnected
         });
 
         newSocket.on('server-connection-error', (data: { connectionId: string, error: string }) => {
@@ -290,14 +287,12 @@ export const useSocket = () => {
                 // Handle different error types
                 if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
                     if (attempt < maxRetries) {
-                        console.log(`Download timeout, retrying... (${attempt}/${maxRetries})`);
                         await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
                         return attemptDownload();
                     } else {
                         throw new Error('Download timed out after multiple attempts. The log file might be too large.');
                     }
                 } else if (error.response?.status === 500 && attempt < maxRetries) {
-                    console.log(`Server error, retrying... (${attempt}/${maxRetries})`);
                     await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
                     return attemptDownload();
                 } else {

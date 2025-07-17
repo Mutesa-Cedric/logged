@@ -1,72 +1,61 @@
-import { useUser } from '@clerk/clerk-react';
+
 import {
-    Anchor,
-    Badge,
     Box,
     Button,
-    Card,
     Container,
     Group,
-    SimpleGrid,
     Stack,
     Text,
-    ThemeIcon,
     Title,
-    useMantineTheme
+    SimpleGrid,
+    ThemeIcon,
 } from '@mantine/core';
 import {
-    IconArrowRight,
-    IconBolt,
     IconCode,
     IconEye,
-    IconSearch,
     IconShield,
+    IconTerminal2,
+    IconBolt,
+    IconDeviceFloppy,
 } from '@tabler/icons-react';
-import { useNavigate } from 'react-router-dom';
-import { themeUtils, useTheme } from '../lib/theme';
+import { Link, useNavigate } from 'react-router-dom';
+import { useTheme, themeUtils } from '../lib/theme';
 import ThemeToggle from './ThemeToggle';
+import { useAtom } from 'jotai';
+import { authModalAtom } from '../store/atoms';
 
 export const LandingPage = () => {
-    const { isSignedIn } = useUser();
     const navigate = useNavigate();
-    const theme = useMantineTheme();
     const { isDark } = useTheme();
-
-    if (isSignedIn) {
-        navigate('/dashboard');
-        return null;
-    }
+    const [, setAuthModal] = useAtom(authModalAtom);
 
     const handleGuestAccess = () => {
         navigate('/guest');
     };
 
     const handleSignIn = () => {
-        navigate('/login');
+        setAuthModal({ open: true, mode: 'signIn' });
     };
 
     const handleSignUp = () => {
-        navigate('/signup');
+        setAuthModal({ open: true, mode: 'signUp' });
     };
 
     const features = [
         {
-            icon: IconBolt,
-            title: 'Real-time Streaming',
-            description: 'Stream logs in real-time with WebSocket connections. Never miss critical events as they happen.',
-            color: 'blue',
-        },
-        {
-            icon: IconSearch,
-            title: 'Advanced Search',
-            description: 'Powerful search and filtering capabilities with instant results and highlighted matches.',
-            color: 'violet',
+            icon: IconTerminal2,
+            title: 'Log Management',
+            description: 'Stream and view server logs in real-time',
         },
         {
             icon: IconShield,
-            title: 'Secure Connections',
-            description: 'Connect securely to your servers with SSH key or password authentication. Your credentials stay safe.',
-            color: 'green',
+            title: 'Secure Access',
+            description: 'SSH connections with encrypted credentials',
+        },
+        {
+            icon: IconBolt,
+            title: 'Live Updates',
+            description: 'WebSocket-powered real-time streaming',
         },
     ];
 
@@ -75,16 +64,16 @@ export const LandingPage = () => {
             style={{
                 minHeight: '100vh',
                 background: isDark
-                    ? themeUtils.getGradient('dark')
-                    : 'linear-gradient(135deg, #f0f9ff 0%, #ffffff 50%, #faf5ff 100%)',
-                transition: themeUtils.transitions.normal,
+                    ? 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)'
+                    : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
             }}
         >
+            {/* Header */}
             <Container size="xl">
-                <Group justify="space-between" py="md">
+                <Group justify="space-between" py="lg">
                     <Group gap="xs">
                         <ThemeIcon
-                            variant="gradient"
+                            variant="filled"
                             gradient={{ from: 'blue', to: 'violet' }}
                             size="lg"
                             radius="md"
@@ -103,7 +92,7 @@ export const LandingPage = () => {
                         </Title>
                     </Group>
 
-                    <Group gap="xs">
+                    <Group gap="sm">
                         <ThemeToggle variant="icon" />
                         <Button
                             variant="subtle"
@@ -118,219 +107,175 @@ export const LandingPage = () => {
                             gradient={{ from: 'blue', to: 'violet' }}
                             variant="gradient"
                         >
-                            Get Started
+                            Sign Up
                         </Button>
                     </Group>
                 </Group>
             </Container>
 
-            <Container size="xl" py={80}>
-                <Stack align="center" gap="xl">
-                    <Stack align="center" gap="md" ta="center">
+            {/* Hero Section */}
+            <Container size="lg" py={120}>
+                <Stack align="center" gap="xl" ta="center">
+                    <Stack align="center" gap="lg">
                         <Title
                             order={1}
-                            size="4rem"
+                            size={64}
                             fw={700}
                             lh={1.1}
                             maw={800}
-                            style={{ color: themeUtils.getThemedColor(theme.colors.gray[9], theme.colors.gray[0], isDark) }}
+                            style={{
+                                color: themeUtils.getThemedColor('#1e293b', '#f1f5f9', isDark),
+                                letterSpacing: '-0.02em',
+                            }}
                         >
-                            Modern Log Viewing{' '}
-                            <Text
-                                component="span"
-                                inherit
-                                style={{
-                                    background: themeUtils.getGradient('primary'),
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
-                                }}
-                            >
-                                Made Simple
-                            </Text>
+                            Simple Log Management
                         </Title>
 
                         <Text
                             size="xl"
                             c="dimmed"
                             maw={600}
-                            ta="center"
                             lh={1.6}
                         >
-                            Say goodbye to terminal struggles. View, search, and manage your server logs
-                            through a beautiful web interface with real-time streaming and powerful search capabilities.
+                            View and manage your server logs with real-time streaming,
+                            secure connections, and an intuitive interface. Completely free to use.
                         </Text>
                     </Stack>
 
                     <Group gap="md" justify="center">
                         <Button
-                            onClick={handleSignUp}
+                            onClick={handleGuestAccess}
                             size="lg"
                             gradient={{ from: 'blue', to: 'violet' }}
                             variant="gradient"
-                            rightSection={<IconArrowRight size={18} />}
-                            style={{
-                                boxShadow: themeUtils.shadows.lg,
-                                transform: 'scale(1)',
-                                transition: themeUtils.transitions.normal,
-                            }}
-                            onMouseEnter={(e) => {
-                                e.currentTarget.style.transform = 'scale(1.02)';
-                            }}
-                            onMouseLeave={(e) => {
-                                e.currentTarget.style.transform = 'scale(1)';
-                            }}
-                        >
-                            Create Free Account
-                        </Button>
-                        <Button
-                            onClick={handleGuestAccess}
-                            size="lg"
-                            variant="outline"
-                            rightSection={<IconEye size={18} />}
-                            style={{ transition: themeUtils.transitions.normal }}
+                            leftSection={<IconEye size={18} />}
                         >
                             Continue as Guest
                         </Button>
+                        <Button
+                            onClick={handleSignUp}
+                            size="lg"
+                            variant="outline"
+                            leftSection={<IconDeviceFloppy size={18} />}
+                        >
+                            Sign Up & Save Data
+                        </Button>
                     </Group>
 
-                    <Badge
-                        variant="light"
-                        color="blue"
-                        size="lg"
-                        radius="md"
-                        style={{ marginTop: theme.spacing.sm }}
-                    >
-                        Guest mode: Try all features without an account (connections won't be saved)
-                    </Badge>
+                    <Text size="sm" c="dimmed">
+                        Free to use • Sign up to save your connections and settings
+                    </Text>
                 </Stack>
             </Container>
 
-            <Container size="xl" py={80}>
+            {/* Features Section */}
+            <Container size="lg" py={80}>
                 <Stack align="center" gap="xl">
                     <Stack align="center" gap="md" ta="center">
                         <Title
                             order={2}
-                            size="3rem"
+                            size="h1"
                             fw={600}
-                            style={{ color: themeUtils.getThemedColor(theme.colors.gray[9], theme.colors.gray[0], isDark) }}
+                            style={{
+                                color: themeUtils.getThemedColor('#1e293b', '#f1f5f9', isDark),
+                                letterSpacing: '-0.02em',
+                            }}
                         >
-                            Everything you need for log management
+                            Everything You Need
                         </Title>
                         <Text
-                            size="xl"
+                            size="lg"
                             c="dimmed"
                             maw={600}
-                            ta="center"
                         >
-                            Professional-grade features that make server log management effortless
+                            Simple tools for viewing and managing server logs
                         </Text>
                     </Stack>
 
                     <SimpleGrid cols={{ base: 1, md: 3 }} spacing="xl" w="100%">
                         {features.map((feature, index) => (
-                            <Card
-                                key={index}
-                                shadow="md"
-                                padding="xl"
-                                radius="xl"
-                                withBorder
-                                style={{
-                                    transition: themeUtils.transitions.normal,
-                                    transform: 'scale(1)',
-                                    cursor: 'default',
-                                }}
-                                onMouseEnter={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(-4px)';
-                                    e.currentTarget.style.boxShadow = themeUtils.shadows.xl;
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.currentTarget.style.transform = 'translateY(0)';
-                                    e.currentTarget.style.boxShadow = themeUtils.shadows.md;
-                                }}
-                            >
-                                <Stack align="center" gap="md" ta="center">
-                                    <ThemeIcon
-                                        color={feature.color}
-                                        variant="light"
-                                        size="xl"
-                                        radius="xl"
-                                        style={{
-                                            transform: 'scale(1)',
-                                            transition: themeUtils.transitions.normal,
-                                        }}
-                                    >
-                                        <feature.icon size={32} />
-                                    </ThemeIcon>
+                            <Stack align="center" gap="md" ta="center" key={index}>
+                                <ThemeIcon
+                                    color="blue"
+                                    variant="light"
+                                    size={60}
+                                    radius="md"
+                                >
+                                    <feature.icon size={28} />
+                                </ThemeIcon>
 
-                                    <Title order={3} size="h3" fw={600}>
-                                        {feature.title}
-                                    </Title>
+                                <Title order={3} size="h3" fw={600}>
+                                    {feature.title}
+                                </Title>
 
-                                    <Text c="dimmed" lh={1.6}>
-                                        {feature.description}
-                                    </Text>
-                                </Stack>
-                            </Card>
+                                <Text c="dimmed" lh={1.6}>
+                                    {feature.description}
+                                </Text>
+                            </Stack>
                         ))}
                     </SimpleGrid>
                 </Stack>
             </Container>
 
-            <Container size="xl" py={80}>
-                <Card
-                    shadow="xl"
-                    padding="xl"
-                    radius="xl"
+            {/* CTA Section */}
+            <Container size="lg" py={80}>
+                <Box
+                    p="xl"
                     style={{
                         background: themeUtils.getGradient('primary'),
-                        border: 'none',
+                        borderRadius: '16px',
+                        textAlign: 'center',
                     }}
                 >
-                    <Stack align="center" gap="md" ta="center">
-                        <Title
-                            order={2}
-                            size="2.5rem"
-                            c="white"
-                            fw={600}
-                        >
-                            Ready to simplify your log management?
-                        </Title>
-                        <Text
-                            size="lg"
-                            c="white"
-                            opacity={0.9}
-                            maw={500}
-                        >
-                            Join thousands of developers who have streamlined their workflow with Logged.
-                        </Text>
-                        <Group gap="md" mt="md">
+                    <Stack align="center" gap="lg">
+                        <Stack align="center" gap="md">
+                            <Title
+                                order={2}
+                                size="h1"
+                                c="white"
+                                fw={600}
+                            >
+                                Ready to Get Started?
+                            </Title>
+                            <Text
+                                size="lg"
+                                c="white"
+                                opacity={0.9}
+                                maw={500}
+                            >
+                                Start viewing your logs right away, or create an account to save your settings.
+                            </Text>
+                        </Stack>
+
+                        <Group gap="md">
                             <Button
-                                onClick={handleSignUp}
+                                onClick={handleGuestAccess}
                                 size="lg"
                                 variant="white"
                                 color="dark"
                                 fw={600}
                             >
-                                Start Free Trial
+                                Continue as Guest
                             </Button>
                             <Button
-                                onClick={handleGuestAccess}
+                                onClick={handleSignUp}
                                 size="lg"
                                 variant="outline"
                                 c="white"
                                 style={{ borderColor: 'white' }}
                             >
-                                Try as Guest
+                                Sign Up & Save Data
                             </Button>
                         </Group>
                     </Stack>
-                </Card>
+                </Box>
             </Container>
 
+            {/* Footer */}
             <Container size="xl" py="xl">
-                <Group justify="center" gap="md">
-                    <Text size="sm" c="dimmed" ta="center">
-                        © {new Date().getFullYear()} Logged. Built with ❤️ by <Anchor href="https://github.com/mutesa-cedric" target="_blank">Mutesa Cedric</Anchor>
+                <Group justify="center">
+                    <Text size="sm" c="dimmed">
+                        © {new Date().getFullYear()} <Link to="https://mcedric.dev" target="_blank" rel="noopener noreferrer">Cedric Mutesa</Link>. Free log management for everyone.
                     </Text>
                 </Group>
             </Container>

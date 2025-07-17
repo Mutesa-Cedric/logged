@@ -10,6 +10,7 @@ import { AppLoadingScreen } from './components/LoadingScreen';
 import { tokenManager } from './lib/api';
 import { isGuestModeAtom } from './store/atoms';
 import { withErrorBoundary } from './components/ErrorBoundary';
+import AuthModal from './components/AuthModal';
 
 function App() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -19,31 +20,31 @@ function App() {
 
   useEffect(() => {
     const isGuestPath = location.pathname.startsWith('/guest');
+
     setIsGuestMode(isGuestPath);
   }, [location.pathname, setIsGuestMode]);
 
   useEffect(() => {
     const initializeAuth = async () => {
-      if (isLoaded && isSignedIn && !isGuestMode) {
+      // Check if we're on a guest path directly
+      const isGuestPath = location.pathname.startsWith('/guest');
+      
+      if (isLoaded && isSignedIn && !isGuestMode && !isGuestPath) {
         try {
-          console.log('🔐 Getting token from Clerk...', { userId: user?.id });
           const token = await getToken();
-          console.log('🔐 Token received:', {
-            hasToken: !!token,
-            tokenLength: token?.length,
-            tokenPreview: token ? `${token.substring(0, 20)}...` : 'No token'
-          });
           tokenManager.setToken(token);
         } catch (error) {
-          console.error('❌ Failed to initialize auth token:', error);
+          console.error('Failed to initialize auth token:', error);
         }
-      } else if ((isLoaded && !isSignedIn) || isGuestMode) {
-        tokenManager.setToken(isGuestMode ? 'guest-token' : null);
+      } else if ((isLoaded && !isSignedIn) || isGuestMode || isGuestPath) {
+        const token = (isGuestMode || isGuestPath) ? 'guest-token' : null;
+
+        tokenManager.setToken(token);
       }
     };
 
     initializeAuth();
-  }, [isLoaded, isSignedIn, getToken, user, isGuestMode]);
+  }, [isLoaded, isSignedIn, getToken, user, isGuestMode, location.pathname]);
 
   if (!isLoaded && !isGuestMode) {
     return (
@@ -58,25 +59,44 @@ function App() {
   );
 
   return (
+    <>
     <Routes>
       <Route
         path="/"
         element={
-          isSignedIn ? <Navigate to="/dashboard" replace /> : <LandingPage />
+          !isLoaded ? (
+            <AppLoadingScreen />
+          ) : isSignedIn ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LandingPage />
+          )
         }
       />
 
       <Route
         path="/login"
         element={
-          isSignedIn ? <Navigate to="/dashboard" replace /> : <LoginPage />
+          !isLoaded ? (
+            <AppLoadingScreen />
+          ) : isSignedIn ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LoginPage />
+          )
         }
       />
 
       <Route
         path="/signup"
         element={
-          isSignedIn ? <Navigate to="/dashboard" replace /> : <SignUpPage />
+          !isLoaded ? (
+            <AppLoadingScreen />
+          ) : isSignedIn ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <SignUpPage />
+          )
         }
       />
 
@@ -130,7 +150,9 @@ function App() {
       <Route
         path="/dashboard"
         element={
-          isSignedIn ? (
+          !isLoaded ? (
+            <AppLoadingScreen />
+          ) : isSignedIn ? (
             <AppLayout>
               <Dashboard />
             </AppLayout>
@@ -143,7 +165,9 @@ function App() {
       <Route
         path="/connections"
         element={
-          isSignedIn ? (
+          !isLoaded ? (
+            <AppLoadingScreen />
+          ) : isSignedIn ? (
             <AppLayout>
               <ConnectionsPage />
             </AppLayout>
@@ -156,7 +180,9 @@ function App() {
       <Route
         path="/logs"
         element={
-          isSignedIn ? (
+          !isLoaded ? (
+            <AppLoadingScreen />
+          ) : isSignedIn ? (
             <AppLayout>
               <LogsPage />
             </AppLayout>
@@ -169,7 +195,9 @@ function App() {
       <Route
         path="/settings"
         element={
-          isSignedIn ? (
+          !isLoaded ? (
+            <AppLoadingScreen />
+          ) : isSignedIn ? (
             <AppLayout>
               <SettingsPage />
             </AppLayout>
@@ -184,6 +212,8 @@ function App() {
         element={<Navigate to="/" replace />}
       />
     </Routes>
+    <AuthModal />
+    </>
   );
 }
 
