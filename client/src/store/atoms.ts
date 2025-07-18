@@ -1,7 +1,6 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
 
-// User preferences (persisted in localStorage)
 export const userPreferencesAtom = atomWithStorage('user-preferences', {
     theme: 'light' as 'light' | 'dark' | 'auto',
     autoScroll: true,
@@ -11,42 +10,33 @@ export const userPreferencesAtom = atomWithStorage('user-preferences', {
     notifications: true,
 });
 
-// UI State
 export const sidebarCollapsedAtom = atom(false);
 export const activePageAtom = atom('dashboard');
 export const loadingAtom = atom(false);
 export const commandPaletteOpenAtom = atom(false);
 
-// Connection State
 export const activeConnectionIdAtom = atom<string | null>(null);
 export const connectionStatusAtom = atom<'connected' | 'disconnected' | 'connecting'>('disconnected');
 
-// Log Viewer State
 export const logSearchTermAtom = atom('');
 export const logStreamingAtom = atom(false);
 export const logSessionIdAtom = atom<string | null>(null);
 export const logCountAtom = atom(0);
 
-// Modal/Dialog State
 export const addConnectionModalAtom = atom(false);
 export const editConnectionModalAtom = atom<string | null>(null);
 export const deleteConnectionModalAtom = atom<string | null>(null);
 
-// WebSocket State
 export const socketConnectedAtom = atom(false);
 export const socketReconnectingAtom = atom(false);
 
-// Guest Mode State
 export const isGuestModeAtom = atom(false);
 
-// Auth Modal State
 export const authModalAtom = atom<{ open: boolean; mode: 'signIn' | 'signUp' }>({ open: false, mode: 'signIn' });
 
-// Encryption State (for authenticated users)
 export const masterKeyAtom = atom<string | null>(null);
 export const encryptionEnabledAtom = atom(false);
 
-// Derived atoms
 export const canSaveConnectionsAtom = atom(
     (get) => !get(isGuestModeAtom) && get(encryptionEnabledAtom)
 );
@@ -59,7 +49,6 @@ export const isLoadingAnyAtom = atom(
     (get) => get(loadingAtom) || get(socketReconnectingAtom)
 );
 
-// Actions atoms (write-only)
 export const toggleSidebarAtom = atom(
     null,
     (get, set) => {

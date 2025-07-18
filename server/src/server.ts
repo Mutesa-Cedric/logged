@@ -8,13 +8,11 @@ import serverRoutes from './modules/api/serverRoutes';
 import { SocketService } from './modules/websocket/socketService';
 import { connectDatabase } from './utils/database';
 
-// import { dbConnection } from './utils/dbConnection';
 const PORT = process.env.PORT || 8000;
 
 const app = express();
 const httpServer = createServer(app);
 
-// Initialize Socket.IO service
 const socketService = new SocketService(httpServer);
 
 app.use(cors({
@@ -22,19 +20,6 @@ app.use(cors({
   credentials: true
 }));
 
-// dbConnection()
-//   .then(() => {
-//     console.log('Database connected');
-//     httpServer.listen(PORT, () => {
-//       console.log(`Server is listening on port ${PORT}`);
-//       console.log(`WebSocket server ready for connections`);
-//     });
-//   })
-//   .catch((err) => {
-//     console.log(err);
-//   });
-
-// Initialize database and start server
 connectDatabase()
   .then((success) => {
     if (success) {
@@ -50,7 +35,6 @@ connectDatabase()
   })
   .catch((err) => {
     console.error('❌ Failed to initialize server:', err);
-    // Start server anyway but without database
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server is listening on port ${PORT} (without database)`);
       console.log(`🔌 WebSocket server ready for connections`);
@@ -75,13 +59,11 @@ app.use((req, res, next) => {
   next();
 });
 
-// log every request
 app.use((req, res, next) => {
   console.log(req.originalUrl, '\t', req.method, '\t', req.url);
   next();
 });
 
-// router middlewares
 app.use('/api/servers', serverRoutes);
 
 app.get('/', (req, res) => {

@@ -11,10 +11,13 @@ import {
     Modal,
     NumberInput,
     PasswordInput,
+    Radio,
     Stack,
     Text,
     TextInput,
+    Textarea,
     Title,
+    FileInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDisclosure } from '@mantine/hooks';
@@ -26,7 +29,9 @@ import {
     IconPlugConnectedX,
     IconPlus,
     IconServer,
-    IconTrash
+    IconTrash,
+    IconUpload,
+    IconKey
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import {
@@ -50,8 +55,38 @@ interface ConnectionForm {
     host: string;
     port: number;
     username: string;
+    authType: 'password' | 'key';
     password: string;
+    privateKey: string;
+    passphrase: string;
 }
+
+const validatePrivateKey = (key: string): boolean => {
+    if (!key.trim()) return false;
+    
+    const validHeaders = [
+        '-----BEGIN PRIVATE KEY-----',
+        '-----BEGIN RSA PRIVATE KEY-----',
+        '-----BEGIN OPENSSH PRIVATE KEY-----',
+        '-----BEGIN EC PRIVATE KEY-----',
+        '-----BEGIN DSA PRIVATE KEY-----',
+        '-----BEGIN ENCRYPTED PRIVATE KEY-----'
+    ];
+    
+    const validFooters = [
+        '-----END PRIVATE KEY-----',
+        '-----END RSA PRIVATE KEY-----',
+        '-----END OPENSSH PRIVATE KEY-----',
+        '-----END EC PRIVATE KEY-----',
+        '-----END DSA PRIVATE KEY-----',
+        '-----END ENCRYPTED PRIVATE KEY-----'
+    ];
+    
+    const hasValidHeader = validHeaders.some(header => key.includes(header));
+    const hasValidFooter = validFooters.some(footer => key.includes(footer));
+    
+    return hasValidHeader && hasValidFooter;
+};
 
 export const ConnectionsPage = () => {
     const [opened, { open, close }] = useDisclosure(false);
@@ -74,34 +109,68 @@ export const ConnectionsPage = () => {
             host: '',
             port: 22,
             username: '',
+            authType: 'password',
             password: '',
+            privateKey: '',
+            passphrase: '',
         },
         validate: {
             name: (value) => (value.length < 1 ? 'Name is required' : null),
             host: (value) => (value.length < 1 ? 'Host is required' : null),
             username: (value) => (value.length < 1 ? 'Username is required' : null),
-            password: (value) => (value.length < 1 ? 'Password is required' : null),
+            password: (value, values) => {
+                if (values.authType === 'password' && value.length < 1) {
+                    return 'Password is required';
+                }
+                return null;
+            },
+            privateKey: (value, values) => {
+                if (values.authType === 'key') {
+                    if (!value) {
+                        return 'Private key is required';
+                    }
+                    if (!validatePrivateKey(value)) {
+                        return 'Invalid private key format. Please ensure it starts with -----BEGIN and ends with -----END.';
+                    }
+                }
+                return null;
+            },
             port: (value) => (value < 1 || value > 65535 ? 'Port must be between 1-65535' : null),
         },
     });
 
-    const handleSubmit = async (values: ConnectionForm) => {
+        const handleSubmit = async (values: ConnectionForm) => {
         try {
+            const privateKeyContent = values.authType === 'key' ? values.privateKey : '';
+
             const connectionData: CreateConnectionData = {
                 name: values.name,
                 host: values.host,
                 port: values.port,
                 username: values.username,
-                // For guest mode, store plain text password temporarily
-                // For authenticated users, encrypt the password
-                ...(isGuestMode ? {
-                    tempPassword: values.password
-                } : {
-                    encryptedPassword: {
-                        encryptedData: btoa(values.password), // Simple base64 for demo
-                        salt: 'demo-salt'
-                    }
-                })
+                ...(values.authType === 'password' 
+                    ? (isGuestMode ? {
+                        tempPassword: values.password
+                    } : {
+                        encryptedPassword: {
+                            encryptedData: btoa(values.password),
+                            salt: 'demo-salt'
+                        }
+                    })
+                    : (isGuestMode ? {
+                        tempPrivateKey: privateKeyContent,
+                        tempPassphrase: values.passphrase
+                    } : {
+                        encryptedPrivateKey: {
+                            encryptedData: btoa(privateKeyContent),
+                            salt: 'demo-salt'
+                        },
+                        encryptedPassphrase: values.passphrase ? {
+                            encryptedData: btoa(values.passphrase),
+                            salt: 'demo-salt'
+                        } : undefined
+                    })
+                )
             };
 
             if (editingConnection) {
@@ -121,14 +190,20 @@ export const ConnectionsPage = () => {
         }
     };
 
-    const handleEdit = (connection: ServerConnection) => {
+        const handleEdit = (connection: ServerConnection) => {
         setEditingConnection(connection);
+        
+        const hasKey = connection.encryptedPrivateKey || connection.tempPrivateKey;
+        
         form.setValues({
             name: connection.name,
             host: connection.host,
             port: connection.port,
             username: connection.username,
+            authType: hasKey ? 'key' : 'password',
             password: '',
+            privateKey: '',
+            passphrase: '',
         });
         open();
     };
@@ -154,17 +229,27 @@ export const ConnectionsPage = () => {
         }
     };
 
-    const handleTestFormConnection = async (values: ConnectionForm) => {
+        const handleTestFormConnection = async (values: ConnectionForm) => {
         setIsTestingConnection(true);
         setTestResult(null);
 
         try {
-            const success = await testConnection.mutateAsync({
+            const privateKeyContent = values.authType === 'key' ? values.privateKey : '';
+
+            const testData = {
                 host: values.host,
                 port: values.port,
                 username: values.username,
-                password: values.password
-            });
+                ...(values.authType === 'password' 
+                    ? { password: values.password }
+                    : { 
+                        privateKey: privateKeyContent,
+                        passphrase: values.passphrase || undefined
+                    }
+                )
+            };
+
+            const success = await testConnection.mutateAsync(testData);
 
             setTestResult({
                 success,
@@ -237,17 +322,15 @@ export const ConnectionsPage = () => {
                 </Button>
             </Group>
 
-            {/* Info Alert */}
             <Alert icon={<IconInfoCircle size={16} />} color={isGuestMode ? "orange" : "blue"} variant="light">
                 <Text size="sm">
-                    {isGuestMode 
+                    {isGuestMode
                         ? "Guest mode: Connections are stored locally and won't be saved permanently. Sign up to save your connections securely."
                         : "Your connections are encrypted and stored securely. You can test connections before saving them."
                     }
                 </Text>
             </Alert>
 
-            {/* Connections List */}
             {connections && connections.length > 0 ? (
                 <Stack gap="sm">
                     {connections.map((connection) => {
@@ -282,7 +365,7 @@ export const ConnectionsPage = () => {
                                         >
                                             {status === 'connected' ? 'Active' : 'Inactive'}
                                         </Badge>
-                                        
+
                                         <Button
                                             variant="light"
                                             size="xs"
@@ -292,7 +375,7 @@ export const ConnectionsPage = () => {
                                         >
                                             Test
                                         </Button>
-                                        
+
                                         <Button
                                             variant="light"
                                             size="xs"
@@ -369,7 +452,6 @@ export const ConnectionsPage = () => {
                 </Card>
             )}
 
-            {/* Add/Edit Connection Modal */}
             <Modal
                 opened={opened}
                 onClose={close}
@@ -408,14 +490,64 @@ export const ConnectionsPage = () => {
                             {...form.getInputProps('username')}
                         />
 
-                        <PasswordInput
-                            label="Password"
-                            placeholder="••••••••"
-                            required
-                            {...form.getInputProps('password')}
-                        />
+                        <Radio.Group label="Authentication Type" {...form.getInputProps('authType')}>
+                            <Radio value="password" label="Password" className='mt-2' />
+                            <Radio value="key" label="SSH Key" className='mt-2' />
+                        </Radio.Group>
 
-                        {/* Test Result Display */}
+                        {form.values.authType === 'password' && (
+                            <PasswordInput
+                                label="Password"
+                                placeholder="••••••••"
+                                required
+                                {...form.getInputProps('password')}
+                            />
+                        )}
+
+                        {form.values.authType === 'key' && (
+                            <>
+                                <div>
+                                    <Text size="sm" fw={500} mb="xs">
+                                        Private Key
+                                    </Text>
+                                    <Group gap="xs" mb="xs">
+                                        <FileInput
+                                            placeholder="Upload key file"
+                                            accept=".pem,.key,.ppk"
+                                            leftSection={<IconUpload size={14} />}
+                                            style={{ flex: 1 }}
+                                            onChange={async (file) => {
+                                                if (file) {
+                                                    const content = await file.text();
+                                                    form.setFieldValue('privateKey', content);
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            variant="light"
+                                            size="xs"
+                                            leftSection={<IconKey size={14} />}
+                                            onClick={() => form.setFieldValue('privateKey', '')}
+                                        >
+                                            Clear
+                                        </Button>
+                                    </Group>
+                                    <Textarea
+                                        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                                        minRows={4}
+                                        maxRows={8}
+                                        {...form.getInputProps('privateKey')}
+                                        autosize
+                                    />
+                                </div>
+                                <PasswordInput
+                                    label="Passphrase (optional)"
+                                    placeholder="Enter passphrase if your key is encrypted"
+                                    {...form.getInputProps('passphrase')}
+                                />
+                            </>
+                        )}
+
                         {testResult && (
                             <Alert
                                 icon={testResult.success ? <IconPlugConnected size={16} /> : <IconPlugConnectedX size={16} />}
@@ -426,21 +558,28 @@ export const ConnectionsPage = () => {
                             </Alert>
                         )}
 
-                        {/* Action Buttons */}
-                        <Group justify="apart" mt="lg">
+                        <Group justify="apart" mt="sm">
                             <Button
                                 variant="light"
                                 color="blue"
                                 leftSection={<IconPlugConnected size={16} />}
                                 onClick={() => handleTestFormConnection(form.values)}
                                 loading={isTestingConnection}
-                                disabled={!form.isValid() || form.values.name === '' || form.values.host === '' || form.values.username === '' || form.values.password === ''}
+                                disabled={
+                                    !form.isValid() ||
+                                    form.values.name === '' ||
+                                    form.values.host === '' ||
+                                    form.values.username === '' ||
+                                    (form.values.authType === 'password' && form.values.password === '') ||
+                                    (form.values.authType === 'key' && form.values.privateKey === '')
+                                }
+                                w="100%"
                             >
                                 Test Connection
                             </Button>
 
-                            <Group>
-                                <Button variant="subtle" onClick={close}>
+                            <Group w="100%" mt={'lg'}>
+                                <Button variant="subtle" >
                                     Cancel
                                 </Button>
                                 <Button

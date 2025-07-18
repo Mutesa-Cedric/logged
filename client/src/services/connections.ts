@@ -20,7 +20,6 @@ export interface ServerConnection {
     updatedAt: string;
     lastUsed?: string;
     userId: string;
-    // For guest mode only
     tempPassword?: string;
     tempPrivateKey?: string;
     tempPassphrase?: string;
@@ -43,7 +42,6 @@ export interface CreateConnectionData {
         encryptedData: string;
         salt: string;
     };
-    // For guest mode
     tempPassword?: string;
     tempPrivateKey?: string;
     tempPassphrase?: string;
@@ -119,7 +117,6 @@ const guestStorage = {
     },
 };
 
-// Query keys
 export const connectionKeys = {
     all: ['connections'] as const,
     lists: () => [...connectionKeys.all, 'list'] as const,
@@ -129,7 +126,6 @@ export const connectionKeys = {
     guest: ['guest-connections'] as const,
 };
 
-// API functions
 const connectionAPI = {
     getConnections: async (isGuest: boolean = false): Promise<ServerConnection[]> => {
         if (isGuest) {
@@ -152,11 +148,9 @@ const connectionAPI = {
 
     createConnection: async (connectionData: CreateConnectionData, isGuest: boolean = false): Promise<ServerConnection> => {
         if (isGuest) {
-            // For guest mode, store passwords in temp fields
             const { encryptedPassword, encryptedPrivateKey, encryptedPassphrase, ...rest } = connectionData;
             const newConnection = guestStorage.addConnection({
                 ...rest,
-                // Store encrypted data as JSON strings if present (for authenticated users who became guests)
                 encryptedPassword: encryptedPassword ? JSON.stringify(encryptedPassword) : undefined,
                 encryptedPrivateKey: encryptedPrivateKey ? JSON.stringify(encryptedPrivateKey) : undefined,
                 encryptedPassphrase: encryptedPassphrase ? JSON.stringify(encryptedPassphrase) : undefined,
@@ -169,11 +163,9 @@ const connectionAPI = {
 
     updateConnection: async (id: string, connectionData: Partial<CreateConnectionData>, isGuest: boolean = false): Promise<ServerConnection> => {
         if (isGuest) {
-            // Transform encryptedPassword to string if present, to match guestStorage expectations
             const { encryptedPassword, ...rest } = connectionData;
             let transformedEncryptedPassword: string | undefined = undefined;
             if (encryptedPassword) {
-                // Store as JSON string for guest storage
                 transformedEncryptedPassword = JSON.stringify(encryptedPassword);
             }
             // @ts-expect-error: We are intentionally transforming the type for guest storage
@@ -198,10 +190,9 @@ const connectionAPI = {
     },
 
     testConnection: async (connectionData: TestConnectionData): Promise<boolean> => {
-        // Convert guest connection to test format for API
         const testData = {
             ...connectionData,
-            id: `test-${Date.now()}`, // Temporary ID for testing
+            id: `test-${Date.now()}`,
         };
 
         const { data } = await api.post('/servers/test-connection', testData);
@@ -210,7 +201,6 @@ const connectionAPI = {
 
     connectToServer: async (connectionId: string, isGuest: boolean = false): Promise<void> => {
         if (isGuest) {
-            // For guest connections, we need to send the raw connection data to connect-direct endpoint
             const connection = guestStorage.getConnections().find(conn => conn.id === connectionId);
             if (!connection) throw new Error('Connection not found');
 
@@ -225,11 +215,9 @@ const connectionAPI = {
                 passphrase: connection.tempPassphrase,
             };
 
-            // Use connect-direct endpoint for guest connections
             const { data } = await api.post('/servers/connect-direct', connectionData);
             if (!data.success) throw new Error(data.error || 'Failed to connect');
 
-            // Update last used
             guestStorage.updateConnection(connectionId, { lastUsed: new Date().toISOString() });
             return;
         }
@@ -237,7 +225,6 @@ const connectionAPI = {
     },
 
     disconnectFromServer: async (connectionId: string): Promise<void> => {
-        // This works the same for both guest and authenticated users
         await api.post(`/servers/disconnect/${connectionId}`);
     },
 
@@ -247,21 +234,18 @@ const connectionAPI = {
     },
 };
 
-// React Query hooks
 export const useConnections = () => {
     const { isLoaded, isSignedIn, user } = useUser();
     const { getToken } = useAuth();
     const [isGuestMode] = useAtom(isGuestModeAtom);
     const location = useLocation();
 
-    // Double-check guest mode
     const isGuestPath = location.pathname.startsWith('/guest');
     const actualGuestMode = isGuestMode || isGuestPath;
 
     return useQuery({
         queryKey: actualGuestMode ? connectionKeys.guest : connectionKeys.lists(),
         queryFn: async () => {
-            // Ensure token is set before making the request
             if (actualGuestMode) {
                 tokenManager.setToken('guest-token');
             } else if (isSignedIn && user) {
@@ -276,8 +260,8 @@ export const useConnections = () => {
 
             return connectionAPI.getConnections(actualGuestMode);
         },
-        enabled: actualGuestMode || (isLoaded && isSignedIn), // Enable for guest mode or fully loaded authenticated users
-        staleTime: 30 * 1000, // 30 seconds
+        enabled: actualGuestMode || (isLoaded && isSignedIn),
+        staleTime: 30 * 1000,
     });
 };
 
@@ -289,7 +273,6 @@ export const useConnection = (id: string) => {
     return useQuery({
         queryKey: connectionKeys.detail(id),
         queryFn: async () => {
-            //   token is set before making the request
             if (isGuestMode) {
                 tokenManager.setToken('guest-token');
             } else if (isSignedIn && user) {
@@ -304,8 +287,8 @@ export const useConnection = (id: string) => {
 
             return connectionAPI.getConnection(id, isGuestMode);
         },
-        enabled: (isGuestMode || (isLoaded && isSignedIn)) && !!id, // Enable for guest mode or fully loaded authenticated users with valid ID
-        staleTime: 60 * 1000, // 1 minute
+        enabled: (isGuestMode || (isLoaded && isSignedIn)) && !!id,
+        staleTime: 60 * 1000,
     });
 };
 
@@ -316,14 +299,12 @@ export const useCreateConnection = () => {
 
     return useMutation({
         mutationFn: (connectionData: CreateConnectionData) => {
-            // Double-check guest mode using both atom and current path
             const isGuestPath = location.pathname.startsWith('/guest');
             const actualGuestMode = isGuestMode || isGuestPath;
             
             return connectionAPI.createConnection(connectionData, actualGuestMode);
         },
         onSuccess: (newConnection) => {
-            // Invalidate both guest and regular connection queries
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
@@ -352,7 +333,6 @@ export const useUpdateConnection = () => {
         mutationFn: ({ id, data }: { id: string; data: Partial<CreateConnectionData> }) =>
             connectionAPI.updateConnection(id, data, isGuestMode),
         onSuccess: (updatedConnection) => {
-            // Invalidate both guest and regular connection queries
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
@@ -381,7 +361,6 @@ export const useDeleteConnection = () => {
     return useMutation({
         mutationFn: (id: string) => connectionAPI.deleteConnection(id, isGuestMode),
         onSuccess: (_, connectionId) => {
-            // Invalidate both guest and regular connection queries
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
@@ -432,7 +411,6 @@ export const useConnectToServer = () => {
     return useMutation({
         mutationFn: (connectionId: string) => connectionAPI.connectToServer(connectionId, isGuestMode),
         onSuccess: (_, connectionId) => {
-            // Invalidate both guest and regular connection queries
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
@@ -460,7 +438,6 @@ export const useDisconnectFromServer = () => {
     return useMutation({
         mutationFn: connectionAPI.disconnectFromServer,
         onSuccess: (_, connectionId) => {
-            // Invalidate both guest and regular connection queries
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
@@ -486,7 +463,7 @@ export const useActiveConnections = () => {
     return useQuery({
         queryKey: ['active-connections'],
         queryFn: connectionAPI.getActiveConnections,
-        refetchInterval: 5000, // Refresh every 5 seconds
-        staleTime: 10 * 1000, // 10 seconds
+        refetchInterval: 5000,
+        staleTime: 10 * 1000,
     });
 }; 

@@ -52,7 +52,6 @@ export const useSocket = () => {
         });
 
         newSocket.on('log-stream-ended', () => {
-            // Stream ended
         });
 
         newSocket.on('log-stream-stopped', () => {
@@ -63,7 +62,6 @@ export const useSocket = () => {
             console.error('Log stream error:', data.error);
             setActiveSession(null);
             
-            // Add error message to logs for user visibility
             setLogs(prev => [...prev, {
                 sessionId: data.sessionId,
                 data: `STREAM ERROR: ${data.error}`,
@@ -72,21 +70,17 @@ export const useSocket = () => {
         });
 
         newSocket.on('server-connected', () => {
-            // Server connected
         });
 
         newSocket.on('server-disconnected', () => {
-            // Server disconnected
         });
 
         newSocket.on('server-connection-error', (data: { connectionId: string, error: string }) => {
             console.error('Server connection error:', data.error);
         });
 
-        // Handle log errors (stderr messages)
         newSocket.on('log-error', (data: { connectionId: string, error: string, timestamp: Date }) => {
             console.warn('Log stderr:', data.error);
-            // Add stderr as a log entry with error type
             setLogs(prev => [...prev, {
                 sessionId: `error-${data.connectionId}-${Date.now()}`,
                 data: `ERROR: ${data.error}`,
@@ -94,10 +88,8 @@ export const useSocket = () => {
             } as LogEntry]);
         });
 
-        // Handle general server errors
         newSocket.on('server-error', (data: { connectionId: string, error: string }) => {
             console.error('Server error:', data.error);
-            // Optionally add to logs or show notification
             setLogs(prev => [...prev, {
                 sessionId: `server-error-${data.connectionId}-${Date.now()}`,
                 data: `SERVER ERROR: ${data.error}`,
@@ -105,10 +97,8 @@ export const useSocket = () => {
             } as LogEntry]);
         });
 
-        // Handle command errors (non-zero exit codes)
         newSocket.on('command-error', (data: { connectionId: string, code: number, signal: string }) => {
             console.warn('Command exited with error:', { code: data.code, signal: data.signal });
-            // Add command exit info to logs
             if (data.code !== 0 && data.code !== null) {
                 setLogs(prev => [...prev, {
                     sessionId: `cmd-error-${data.connectionId}-${Date.now()}`,
@@ -135,7 +125,7 @@ export const useSocket = () => {
 
             const timeout = setTimeout(() => {
                 resolve(false);
-            }, 10000); // 10 second timeout
+            }, 10000);
 
             socketRef.current.once('connection-test-result', (result: { success: boolean, connectionId: string, error?: string }) => {
                 clearTimeout(timeout);
@@ -158,7 +148,7 @@ export const useSocket = () => {
 
             const timeout = setTimeout(() => {
                 reject(new Error('Connection timeout'));
-            }, 15000); // 15 second timeout
+            }, 15000);
 
             socketRef.current.once('server-connected', () => {
                 clearTimeout(timeout);
@@ -231,13 +221,11 @@ export const useSocket = () => {
 
         const attemptDownload = async (): Promise<void> => {
             try {
-                // Create AbortController for cancellation
                 const abortController = new AbortController();
 
-                // Set a longer timeout for downloads (5 minutes)
                 const timeoutId = setTimeout(() => {
                     abortController.abort();
-                }, 300000); // 5 minutes
+                }, 300000);
 
                 const response = await api.post('/servers/download-logs', {
                     connectionId,
@@ -246,7 +234,7 @@ export const useSocket = () => {
                 }, {
                     responseType: 'blob',
                     signal: abortController.signal,
-                    timeout: 300000, // 5 minutes
+                    timeout: 300000,
                     onDownloadProgress: (progressEvent) => {
                         if (progressEvent.total && onProgress) {
                             const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
@@ -257,14 +245,12 @@ export const useSocket = () => {
 
                 clearTimeout(timeoutId);
 
-                // Handle the blob response
                 const blob = response.data;
 
                 if (!blob || blob.size === 0) {
                     throw new Error('No data received from server');
                 }
 
-                // Create download
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
@@ -273,27 +259,25 @@ export const useSocket = () => {
                 document.body.appendChild(a);
                 a.click();
 
-                // Cleanup
                 window.URL.revokeObjectURL(url);
                 document.body.removeChild(a);
 
                 if (onProgress) {
-                    onProgress(100); // Complete
+                    onProgress(100);
                 }
 
             } catch (error: any) {
                 attempt++;
 
-                // Handle different error types
                 if (error.code === 'ECONNABORTED' || error.name === 'AbortError') {
                     if (attempt < maxRetries) {
-                        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+                        await new Promise(resolve => setTimeout(resolve, 2000));
                         return attemptDownload();
                     } else {
                         throw new Error('Download timed out after multiple attempts. The log file might be too large.');
                     }
                 } else if (error.response?.status === 500 && attempt < maxRetries) {
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+                    await new Promise(resolve => setTimeout(resolve, 2000));
                     return attemptDownload();
                 } else {
                     console.error('Download error:', error);

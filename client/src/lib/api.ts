@@ -4,7 +4,6 @@ import axios from 'axios';
 
 const BASE_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:8000';
 
-// Token manager for Clerk authentication
 class TokenManager {
     private token: string | null = null;
 
@@ -28,13 +27,10 @@ export const api = axios.create({
     },
 });
 
-// Request interceptor for auth
 api.interceptors.request.use(
     (config) => {
-        // Add auth token from Clerk if available
         let token = tokenManager.getToken();
 
-        // Safety check: if we're on a guest path and don't have a token, set guest token
         if (!token && typeof window !== 'undefined' && window.location.pathname.startsWith('/guest')) {
             token = 'guest-token';
             tokenManager.setToken(token);
@@ -50,7 +46,6 @@ api.interceptors.request.use(
     }
 );
 
-// Response interceptor for error handling
 api.interceptors.response.use(
     (response: AxiosResponse) => {
         return response;

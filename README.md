@@ -1,270 +1,116 @@
-# Logged - Web-Based Log Viewer
+# Logged - Real-time Server Log Monitoring
 
-A modern, web-based log viewer that allows you to connect to remote servers via SSH and view logs in real-time through a beautiful interface. No more struggling with terminal-based log viewing!
+A modern web application for monitoring server logs in real-time with SSH connectivity and secure authentication.
 
 ## Features
 
-- 🔐 **SSH Connection Management** - Connect to remote servers using password or private key authentication
-- 📊 **Real-time Log Streaming** - Stream logs in real-time using WebSocket connections
-- 🔍 **Advanced Search** - Search through logs with instant filtering
-- 📥 **Download Logs** - Export logs in TXT or JSON format
-- 🎯 **Quick Commands** - Pre-defined commands for common log operations
-- 🔄 **Auto-scroll** - Automatically scroll to latest logs with manual override
-- 🏗️ **Modern UI** - Built with React and Tailwind CSS for a smooth experience
+- 🔒 **Secure Authentication** - Clerk-based authentication with guest mode support
+- 🌐 **SSH Connections** - Connect to servers via SSH with both password and SSH key authentication
+- 📊 **Real-time Log Streaming** - Live log monitoring with WebSocket connectivity
+- 💾 **Connection Management** - Save and manage multiple server connections
+- 🎨 **Modern UI** - Clean, responsive interface built with Mantine
+- 🔐 **Encrypted Storage** - Secure credential storage with AES encryption
+- 🌙 **Dark Mode** - Full dark/light theme support
 
-## Architecture
+## Authentication Methods
 
-- **Frontend**: React 19 + TypeScript + Vite + Tailwind CSS
-- **Backend**: Node.js + Express + TypeScript + Socket.IO
-- **SSH**: ssh2 library for secure remote connections
-- **Real-time**: Socket.IO for WebSocket communication
+### Password Authentication
+Connect to your servers using traditional username/password authentication.
 
-## Quick Start
+### SSH Key Authentication
+For enhanced security, connect using SSH private keys:
+- Support for various key formats (RSA, EC, OpenSSH, etc.)
+- Optional passphrase support for encrypted keys
+- File upload or manual key input
+- Automatic key format validation
+
+Supported private key formats:
+- `-----BEGIN PRIVATE KEY-----`
+- `-----BEGIN RSA PRIVATE KEY-----` 
+- `-----BEGIN OPENSSH PRIVATE KEY-----`
+- `-----BEGIN EC PRIVATE KEY-----`
+- `-----BEGIN DSA PRIVATE KEY-----`
+- `-----BEGIN ENCRYPTED PRIVATE KEY-----`
+
+## Getting Started
 
 ### Prerequisites
-
-- Node.js 18+
-- pnpm (recommended) or npm
-- Access to remote servers via SSH
+- Node.js (v18 or higher)
+- MongoDB database
+- Clerk account for authentication
 
 ### Installation
 
-1. **Clone the repository**
-
-   ```bash
-   git clone <repository-url>
-   cd logged
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   # Install server dependencies
-   cd server
-   pnpm install
-
-   # Install client dependencies
-   cd ../client
-   pnpm install
-   ```
-
-3. **Set up environment variables**
-
-   ```bash
-   # Server environment
-   cd ../server
-   cp .env.example .env
-
-   # Client environment
-   cd ../client
-   cp .env.example .env
-   ```
-
-4. **Start the development servers**
-
-   ```bash
-   # Terminal 1 - Start the server
-   cd server
-   pnpm dev
-
-   # Terminal 2 - Start the client
-   cd client
-   pnpm dev
-   ```
-
-5. **Open your browser**
-   Navigate to `http://localhost:5173`
-
-## Usage Guide
-
-### 1. Add a Server Connection
-
-Click "Add Server" and fill in your server details:
-
-- **Connection Name**: A friendly name for your server
-- **Host**: Server IP address or hostname
-- **Port**: SSH port (usually 22)
-- **Username**: SSH username
-- **Authentication**: Choose between password or private key
-
-### 2. Test Connection
-
-Before saving, click "Test Connection" to verify your credentials work.
-
-### 3. Connect to Server
-
-Once added, click "Connect" on your server to establish an SSH connection.
-
-### 4. View Logs
-
-Select your connected server and:
-
-- **Command Mode**: Run commands like `docker logs -f myapp -n 1000`
-- **File Mode**: Read log files directly like `/var/log/nginx/access.log`
-- **Stream**: Real-time streaming with `-f` flag
-- **Execute**: One-time command execution
-
-### 5. Search and Filter
-
-Use the search box to filter logs in real-time. The counter shows filtered vs total lines.
-
-### 6. Download Logs
-
-Export your logs in TXT or JSON format for further analysis.
-
-## Common Log Commands
-
-The interface provides quick access to common commands:
-
+1. Clone the repository:
 ```bash
-# Docker logs
-docker logs -f myapp -n 1000
-docker logs -f myapp --since 1h
-
-# System logs
-tail -f /var/log/nginx/access.log
-tail -f /var/log/nginx/error.log
-journalctl -f -u myservice
-tail -f /var/log/syslog
+git clone <repository-url>
+cd logged
 ```
 
-## API Endpoints
+2. Install dependencies:
+```bash
+# Install server dependencies
+cd server && npm install
 
-The server provides a REST API for programmatic access:
-
-- `POST /api/servers/test-connection` - Test server connection
-- `POST /api/servers/connect` - Connect to server
-- `POST /api/servers/disconnect/:id` - Disconnect from server
-- `GET /api/servers/connections` - Get active connections
-- `POST /api/servers/execute-command` - Execute one-time command
-- `POST /api/servers/read-file` - Read log file
-- `POST /api/servers/download-logs` - Download logs
-- `GET /api/servers/health` - Health check
-
-## WebSocket Events
-
-Real-time communication uses Socket.IO:
-
-### Client → Server
-
-- `test-connection` - Test server connection
-- `connect-server` - Connect to server
-- `start-log-stream` - Start log streaming
-- `stop-log-stream` - Stop log streaming
-- `disconnect-server` - Disconnect from server
-
-### Server → Client
-
-- `connection-test-result` - Connection test result
-- `server-connected` - Server connected
-- `log-data` - Log data received
-- `log-stream-ended` - Stream ended
-- `server-error` - Server error occurred
-
-## Security Considerations
-
-- **Credentials**: Server credentials are not stored permanently. They exist only in memory during the session.
-- **SSH Keys**: Private keys are transmitted over HTTPS and not logged.
-- **Connections**: All connections use secure WebSocket (WSS) in production.
-- **CORS**: Configured to only allow connections from your client domain.
-
-## Configuration
-
-### Server Configuration
-
-Edit `server/.env`:
-
-```env
-PORT=8000                    # Server port
-CLIENT_URL=http://localhost:5173  # Client URL for CORS
-NODE_ENV=development         # Environment
+# Install client dependencies  
+cd ../client && npm install
 ```
 
-### Client Configuration
+3. Environment Setup:
+```bash
+# Server (.env)
+DATABASE_URL="mongodb://localhost:27017/logged"
+CLERK_SECRET_KEY="your_clerk_secret_key"
 
-Edit `client/.env`:
-
-```env
-VITE_SERVER_URL=http://localhost:8000  # Server URL
+# Client (.env.local)
+VITE_CLERK_PUBLISHABLE_KEY="your_clerk_publishable_key"
 ```
 
-## Production Deployment
+4. Start the development servers:
+```bash
+# Start server (from server directory)
+npm run dev
 
-### Using Docker
+# Start client (from client directory) 
+npm run dev
+```
 
-1. **Build the Docker image**
+## Usage
 
-   ```bash
-   cd server
-   docker build -t logged-server .
-   ```
+### Adding SSH Key Connections
 
-2. **Run the container**
-   ```bash
-   docker run -p 8000:8000 -e CLIENT_URL=https://your-domain.com logged-server
-   ```
+1. Navigate to the Connections page
+2. Click "Add Connection"
+3. Fill in the connection details (name, host, port, username)
+4. Select "SSH Key" as the authentication type
+5. Either upload a private key file or paste the key content manually
+6. Add a passphrase if your key is encrypted (optional)
+7. Test the connection before saving
 
-### Manual Deployment
+### Managing Connections
 
-1. **Build the client**
+- **Test Connections**: Verify connectivity before saving
+- **Edit Connections**: Update connection details and credentials
+- **Secure Storage**: Credentials are encrypted and stored securely
+- **Guest Mode**: Try the app without signing up (connections stored locally)
 
-   ```bash
-   cd client
-   pnpm build
-   ```
+## Architecture
 
-2. **Build the server**
-
-   ```bash
-   cd server
-   pnpm build
-   ```
-
-3. **Start the server**
-
-   ```bash
-   cd server
-   pnpm start
-   ```
-
-4. **Serve the client** (using nginx, Apache, or any static file server)
-
-## Troubleshooting
-
-### Connection Issues
-
-- **SSH Connection Failed**: Verify host, port, username, and credentials
-- **Permission Denied**: Check if the user has appropriate permissions
-- **Host Key Verification**: The app accepts unknown host keys automatically
-
-### Log Issues
-
-- **Command Not Found**: Ensure the command exists on the remote server
-- **Permission Denied**: Check if the user can access log files
-- **No Output**: Some commands may require specific flags or paths
-
-### WebSocket Issues
-
-- **Connection Refused**: Check if the server is running and accessible
-- **CORS Errors**: Verify CLIENT_URL in server environment
-- **Disconnections**: Check network stability and firewall settings
+- **Frontend**: React + TypeScript + Mantine UI
+- **Backend**: Node.js + Express + Socket.io
+- **Database**: MongoDB with Prisma ORM
+- **Authentication**: Clerk
+- **SSH**: node-ssh for secure connections
+- **Encryption**: AES-256 for credential security
 
 ## Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/new-feature`)
+3. Commit your changes (`git commit -am 'Add new feature'`)
+4. Push to the branch (`git push origin feature/new-feature`)
+5. Create a Pull Request
 
 ## License
 
-MIT License - see LICENSE file for details.
-
-## Support
-
-For issues and questions:
-
-- Create an issue on GitHub
-- Check the troubleshooting section
-- Review server logs for error details
+This project is licensed under the MIT License - see the LICENSE file for details.

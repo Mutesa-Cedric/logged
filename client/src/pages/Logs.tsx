@@ -109,11 +109,9 @@ export const LogsPage = () => {
 
         const lower = content.toLowerCase();
 
-        // Handle system messages first     
         if (lower.startsWith('command info:')) return 'info';
         if (lower.startsWith('stderr:')) {
-            // STDERR messages can be warnings or errors depending on content
-            const stderrContent = lower.substring(7); // Remove "stderr:" prefix
+            const stderrContent = lower.substring(7);
             if (stderrContent.includes('error response from daemon') ||
                 stderrContent.includes('no such container') ||
                 stderrContent.includes('permission denied') ||
@@ -125,7 +123,7 @@ export const LogsPage = () => {
                 stderrContent.includes('exception') || stderrContent.includes('fatal')) {
                 return 'error';
             }
-            return 'warn'; // Default stderr to warning level
+            return 'warn';
         }
         if (lower.startsWith('server error:')) return 'error';
         if (lower.startsWith('stream error:')) return 'error';
@@ -180,7 +178,6 @@ export const LogsPage = () => {
 
         useEffect(() => {
         if (import.meta.env.DEV && logs.length > 0) {
-            // Track log level distribution for debugging
             logs.reduce((acc, log) => {
                 const level = getLogLevel(log.data);
                 acc[level] = (acc[level] || 0) + 1;

@@ -5,7 +5,6 @@ import isAuthenticated, { AuthenticatedRequest, requireAuth } from '../../middle
 
 const router = Router();
 
-// Health check - No authentication required
 router.get('/health', (req, res) => {
     res.json({
         success: true,
@@ -15,12 +14,9 @@ router.get('/health', (req, res) => {
     });
 });
 
-// Apply basic authentication middleware to all other routes (allows guests)
 router.use(isAuthenticated);
 
-// CRUD Operations for saved connections - Require authentication (no guests)
 
-// Get all saved connections for user
 router.get('/connections', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
@@ -38,7 +34,6 @@ router.get('/connections', requireAuth, async (req: AuthenticatedRequest, res) =
     }
 });
 
-// Get a specific connection
 router.get('/connections/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
@@ -65,13 +60,11 @@ router.get('/connections/:id', requireAuth, async (req: AuthenticatedRequest, re
     }
 });
 
-// Create a new connection
 router.post('/connections', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const connectionData = req.body;
 
-        // Validate required fields
         if (!connectionData.name || !connectionData.host || !connectionData.username || !connectionData.port) {
             return res.status(400).json({
                 success: false,
@@ -93,7 +86,6 @@ router.post('/connections', requireAuth, async (req: AuthenticatedRequest, res) 
     }
 });
 
-// Update a connection
 router.put('/connections/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
@@ -121,7 +113,6 @@ router.put('/connections/:id', requireAuth, async (req: AuthenticatedRequest, re
     }
 });
 
-// Delete a connection
 router.delete('/connections/:id', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
@@ -148,9 +139,7 @@ router.delete('/connections/:id', requireAuth, async (req: AuthenticatedRequest,
     }
 });
 
-// SSH Operations (works for both authenticated users and guests)
 
-// Connect to server directly (for guest users with temporary credentials)
 router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
     try {
         const connection: SSHConnection = req.body;
@@ -162,7 +151,6 @@ router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
             isGuest: req.isGuest
         });
 
-        // Validate required fields
         if (!connection.host || !connection.username || !connection.port) {
             return res.status(400).json({
                 success: false,
@@ -170,14 +158,12 @@ router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
             });
         }
 
-        // Generate a unique connection ID if not provided
         if (!connection.id) {
             connection.id = req.isGuest 
                 ? `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
                 : `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         }
 
-        // Check if already connected
         if (sshService.isConnected(connection.id)) {
             return res.json({
                 success: true,
@@ -186,7 +172,6 @@ router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
             });
         }
 
-        // Connect to the server
         await sshService.connectToServer(connection);
 
         res.json({
@@ -203,7 +188,6 @@ router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
     }
 });
 
-// Test connection (works with both saved and unsaved connections)
 router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
     try {
         const connection: SSHConnection = req.body;
@@ -215,7 +199,6 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
             isGuest: req.isGuest
         });
 
-        // Validate required fields
         if (!connection.host || !connection.username || !connection.port) {
             return res.status(400).json({
                 success: false,
@@ -223,7 +206,6 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
             });
         }
 
-        // Test the connection
         const isConnected = await sshService.testConnection(connection);
 
         res.json({
@@ -239,13 +221,11 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
     }
 });
 
-// Connect to server using saved connection (authenticated users only)
 router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequest, res) => {
     try {
         const clerkId = req.clerkId!;
         const { connectionId } = req.params;
 
-        // Get the saved connection
         const savedConnection = await userService.getConnection(clerkId, connectionId);
         if (!savedConnection) {
             return res.status(404).json({
@@ -254,21 +234,15 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
             });
         }
 
-        // Decrypt password if available
         let password: string | undefined;
         if (savedConnection.encryptedPassword) {
             try {
-                // Check if it's the old demo format first (for backward compatibility)
                 if (savedConnection.encryptedPassword.includes(':')) {
                     const [encryptedData, salt] = savedConnection.encryptedPassword.split(':');
                     if (salt === 'demo-salt') {
-                        // Simple base64 decoding for demo/legacy data
                         password = Buffer.from(encryptedData, 'base64').toString();
                         console.log('⚠️ Using legacy demo decryption - consider migrating to proper AES');
                     } else {
-                        // Proper AES decryption for production
-                        // Note: In a real implementation, you'd need the user's master key
-                        // For now, we'll assume a default master key or retrieve it from session
                         const masterKey = 'default-master-key'; // TODO: Get from user session
 
                         const { decryptData } = await import('../../utils/encryption');
@@ -291,7 +265,6 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
             }
         }
 
-        // Decrypt private key if available
         let privateKey: string | undefined;
         if (savedConnection.encryptedPrivateKey) {
             try {
@@ -311,11 +284,9 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
                 }
             } catch (error) {
                 console.error('Private key decryption failed:', error);
-                // Continue without private key rather than failing
             }
         }
 
-        // Decrypt passphrase if available
         let passphrase: string | undefined;
         if (savedConnection.encryptedPassphrase) {
             try {
@@ -335,11 +306,9 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
                 }
             } catch (error) {
                 console.error('Passphrase decryption failed:', error);
-                // Continue without passphrase rather than failing
             }
         }
 
-        // Convert to SSH connection format
         const sshConnection: SSHConnection = {
             id: savedConnection.id,
             name: savedConnection.name,
@@ -351,7 +320,6 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
             passphrase: passphrase,
         };
 
-        // Check if already connected
         if (sshService.isConnected(connectionId)) {
             return res.json({
                 success: true,
@@ -362,7 +330,6 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
 
         await sshService.connectToServer(sshConnection);
 
-        // Update last used timestamp
         await userService.updateConnectionLastUsed(clerkId, connectionId);
 
         res.json({
@@ -379,7 +346,6 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
     }
 });
 
-// Disconnect from server (works for both authenticated users and guests)
 router.post('/disconnect/:connectionId', (req, res) => {
     try {
         const { connectionId } = req.params;
@@ -405,7 +371,6 @@ router.post('/disconnect/:connectionId', (req, res) => {
     }
 });
 
-// Get active SSH connections (works for both authenticated users and guests)
 router.get('/active-connections', (req, res) => {
     try {
         const connections = sshService.getActiveConnections();
@@ -421,7 +386,6 @@ router.get('/active-connections', (req, res) => {
     }
 });
 
-// Execute log command (one-time) - works for both authenticated users and guests
 router.post('/execute-command', async (req, res) => {
     try {
         const { connectionId, command }: { connectionId: string, command: LogCommand } = req.body;
@@ -440,7 +404,6 @@ router.post('/execute-command', async (req, res) => {
             });
         }
 
-        // For non-streaming commands only
         if (command.follow) {
             return res.status(400).json({
                 success: false,
@@ -463,7 +426,6 @@ router.post('/execute-command', async (req, res) => {
     }
 });
 
-// Read log file
 router.post('/read-file', async (req, res) => {
     try {
         const { connectionId, filePath }: { connectionId: string, filePath: string } = req.body;
@@ -498,7 +460,6 @@ router.post('/read-file', async (req, res) => {
     }
 });
 
-// Download logs (export)
 router.post('/download-logs', async (req, res) => {
     try {
         const { connectionId, command, format = 'txt' }: {
@@ -521,13 +482,11 @@ router.post('/download-logs', async (req, res) => {
             });
         }
 
-        // Set longer timeout for the response (5 minutes)
-        req.setTimeout(300000); // 5 minutes
-        res.setTimeout(300000); // 5 minutes
+        req.setTimeout(300000);
+        res.setTimeout(300000);
 
         console.log(`Starting log download for connection ${connectionId} with command: ${command.value}`);
 
-        // Ensure it's not a streaming command for download
         const downloadCommand = { ...command, follow: false };
 
         let result: string | void;
@@ -560,7 +519,6 @@ router.post('/download-logs', async (req, res) => {
 
         console.log(`Log data retrieved: ${result.length} characters, format: ${format}`);
 
-        // Set appropriate headers for download
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Pragma', 'no-cache');
 
@@ -592,7 +550,6 @@ router.post('/download-logs', async (req, res) => {
             res.setHeader('Content-Length', Buffer.byteLength(jsonString, 'utf8'));
             res.send(jsonString);
         } else {
-            // Add metadata header for txt format
             const header = `# Log Export\n# Connection: ${connectionId}\n# Command: ${downloadCommand.value}\n# Export Time: ${new Date().toISOString()}\n# Total Lines: ${result.split('\n').length}\n\n`;
             const content = header + result;
 
@@ -607,7 +564,6 @@ router.post('/download-logs', async (req, res) => {
     } catch (error) {
         console.error('Download logs error:', error);
 
-        // Check if response was already sent
         if (!res.headersSent) {
             const errorMessage = error instanceof Error ? error.message : 'Download failed';
             res.status(500).json({
@@ -618,7 +574,6 @@ router.post('/download-logs', async (req, res) => {
     }
 });
 
-// Helper function for log level detection (same as client-side)
 function getLogLevel(content: string): 'error' | 'warn' | 'info' | 'debug' | 'default' {
     if (!content || typeof content !== 'string') return 'default';
 

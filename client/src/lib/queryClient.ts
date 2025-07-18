@@ -5,10 +5,9 @@ import type { AxiosError } from 'axios';
 export const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
-            staleTime: 5 * 60 * 1000, // 5 minutes
-            gcTime: 10 * 60 * 1000, // 10 minutes
+            staleTime: 5 * 60 * 1000,
+            gcTime: 10 * 60 * 1000,
             retry: (failureCount, error: Error) => {
-                // Don't retry on 4xx errors except 408, 429
                 const axiosError = error as AxiosError;
                 if (axiosError?.response?.status && axiosError.response.status >= 400 && axiosError.response.status < 500) {
                     if (![408, 429].includes(axiosError.response.status)) {
@@ -22,7 +21,6 @@ export const queryClient = new QueryClient({
         },
         mutations: {
             onError: (error: Error) => {
-                // Global error handling for mutations
                 const axiosError = error as AxiosError<{ message: string }>;
                 const message = axiosError?.response?.data?.message || axiosError?.message || 'An error occurred';
                 notifications.show({
