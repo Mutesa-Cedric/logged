@@ -1,0 +1,305 @@
+import {
+    ActionIcon,
+    Badge,
+    Box,
+    Button,
+    Card,
+    Group,
+    Loader,
+    Modal,
+    ScrollArea,
+    SimpleGrid,
+    Stack,
+    Text,
+    TextInput,
+    ThemeIcon,
+    useMantineTheme
+} from '@mantine/core';
+import { IconBrain, IconMessage, IconSend, IconTrash } from '@tabler/icons-react';
+import { useEffect, useRef, useState } from 'react';
+import { api } from '../lib/api';
+import { themeUtils, useTheme } from '../lib/theme';
+
+interface LogEntry {
+    sessionId: string;
+    data: string;
+    timestamp: Date;
+}
+
+interface AIChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
+interface AIChatModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    logs: LogEntry[];
+}
+
+export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
+    const theme = useMantineTheme();
+    const { isDark } = useTheme();
+    const [message, setMessage] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [conversationHistory, setConversationHistory] = useState<AIChatMessage[]>([]);
+    const [aiAvailable, setAiAvailable] = useState(true);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            checkAIStatus();
+        }
+    }, [isOpen]);
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [conversationHistory]);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    const checkAIStatus = async () => {
+        try {
+            const response = await api.get('/ai/status');
+            setAiAvailable(response.data.available);
+        } catch (error) {
+            console.error('Failed to check AI status:', error);
+            setAiAvailable(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!message.trim() || isLoading) return;
+
+        const userMessage = message.trim();
+        setMessage('');
+        setIsLoading(true);
+
+        const newUserMessage: AIChatMessage = { role: 'user', content: userMessage };
+        setConversationHistory(prev => [...prev, newUserMessage]);
+
+        try {
+            const response = await api.post('/ai/chat', {
+                logs,
+                message: userMessage,
+                conversationHistory
+            });
+
+            setConversationHistory(response.data.conversationHistory);
+        } catch (error) {
+            console.error('AI chat error:', error);
+            const errorMessage: AIChatMessage = {
+                role: 'assistant',
+                content: 'Sorry, I encountered an error while processing your request. Please try again.'
+            };
+            setConversationHistory(prev => [...prev, errorMessage]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const clearConversation = () => {
+        setConversationHistory([]);
+    };
+
+    const suggestedQuestions = [
+        'What errors are present in these logs?',
+        'Are there any performance issues?',
+        'What patterns do you notice?',
+        'Summarize the main events',
+        'Are there any security concerns?'
+    ];
+
+    return (
+        <Modal
+            opened={isOpen}
+            onClose={onClose}
+            size="xl"
+            centered
+            title={
+                <Group gap="sm">
+                    <ThemeIcon color="blue" variant="light" size="md">
+                        <IconBrain size={18} />
+                    </ThemeIcon>
+                    <Box>
+                        <Text size="lg" fw={600}>
+                            AI Log Analysis
+                        </Text>
+                        <Text size="sm" c="dimmed">
+                            Ask questions about your {logs.length} log entries
+                        </Text>
+                    </Box>
+                </Group>
+            }
+            styles={{
+                header: {
+                    backgroundColor: themeUtils.getThemedColor('#ffffff', '#1a1b1e', isDark),
+                    borderBottom: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                },
+                body: {
+                    padding: 0,
+                    backgroundColor: themeUtils.getThemedColor('#ffffff', '#1a1b1e', isDark),
+                },
+            }}
+        >
+            <Stack h={600} gap={0}>
+                {/* Header Actions */}
+                <Group justify="space-between" p="md" style={{
+                    borderBottom: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                }}>
+                    <Group gap="xs">
+                        {!aiAvailable && (
+                            <Badge color="red" variant="light" size="sm">
+                                AI Unavailable
+                            </Badge>
+                        )}
+                    </Group>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        onClick={clearConversation}
+                        title="Clear conversation"
+                    >
+                        <IconTrash size={16} />
+                    </ActionIcon>
+                </Group>
+
+                {/* Messages Area */}
+                <ScrollArea flex={1} p="md">
+                    {conversationHistory.length === 0 ? (
+                        <Stack align="center" py="xl" gap="lg">
+                            <ThemeIcon color="blue" variant="light" size={60}>
+                                <IconBrain size={30} />
+                            </ThemeIcon>
+                            <Box ta="center">
+                                <Text size="lg" fw={600} mb="xs">
+                                    Ask about your logs
+                                </Text>
+                                <Text size="sm" c="dimmed" mb="xl">
+                                    I can help you analyze patterns, identify issues, and provide insights.
+                                </Text>
+                            </Box>
+
+                            <SimpleGrid cols={{ base: 1, sm: 2 }} w="100%">
+                                {suggestedQuestions.map((question, index) => (
+                                    <Card
+                                        key={index}
+                                        padding="sm"
+                                        withBorder
+                                        style={{
+                                            cursor: 'pointer',
+                                            backgroundColor: themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
+                                            borderColor: themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
+                                        }}
+                                        onClick={() => setMessage(question)}
+                                    >
+                                        <Text size="sm" c="dimmed">
+                                            {question}
+                                        </Text>
+                                    </Card>
+                                ))}
+                            </SimpleGrid>
+                        </Stack>
+                    ) : (
+                        <Stack gap="md">
+                            {conversationHistory.map((msg, index) => (
+                                <Group
+                                    key={index}
+                                    justify={msg.role === 'user' ? 'flex-end' : 'flex-start'}
+                                    align="flex-start"
+                                >
+                                    <Card
+                                        p="md"
+                                        radius="md"
+                                        maw="80%"
+                                        style={{
+                                            backgroundColor: msg.role === 'user'
+                                                ? theme.colors.blue[6]
+                                                : themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
+                                            borderColor: msg.role === 'user'
+                                                ? theme.colors.blue[6]
+                                                : themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
+                                        }}
+                                    >
+                                        <Group gap="xs" mb="xs">
+                                            <ThemeIcon
+                                                color={msg.role === 'user' ? 'white' : 'blue'}
+                                                variant="light"
+                                                size="sm"
+                                            >
+                                                {msg.role === 'user' ? <IconMessage size={12} /> : <IconBrain size={12} />}
+                                            </ThemeIcon>
+                                            <Text size="xs" c={msg.role === 'user' ? 'white' : 'dimmed'} fw={500}>
+                                                {msg.role === 'user' ? 'You' : 'AI Assistant'}
+                                            </Text>
+                                        </Group>
+                                        <Text
+                                            size="sm"
+                                            c={msg.role === 'user' ? 'white' : undefined}
+                                            style={{ whiteSpace: 'pre-wrap' }}
+                                        >
+                                            {msg.content}
+                                        </Text>
+                                    </Card>
+                                </Group>
+                            ))}
+
+                            {isLoading && (
+                                <Group justify="flex-start" align="flex-start">
+                                    <Card
+                                        p="md"
+                                        radius="md"
+                                        style={{
+                                            backgroundColor: themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
+                                            borderColor: themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
+                                        }}
+                                    >
+                                        <Group gap="xs">
+                                            <Loader size="sm" />
+                                            <Text size="sm" c="dimmed">
+                                                Analyzing logs...
+                                            </Text>
+                                        </Group>
+                                    </Card>
+                                </Group>
+                            )}
+                        </Stack>
+                    )}
+                    <div ref={messagesEndRef} />
+                </ScrollArea>
+
+                {/* Input Area */}      
+                <Box p="md" style={{
+                    borderTop: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                }}>
+                    <form onSubmit={handleSubmit}>
+                        <Group gap="sm">
+                            <TextInput
+                                flex={1}
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Ask about your logs..."
+                                disabled={isLoading || !aiAvailable}
+                                rightSection={
+                                    <Button
+                                        type="submit"
+                                        disabled={!message.trim() || isLoading || !aiAvailable}
+                                        variant="light"
+                                        color="blue"
+                                        size="sm"
+                                        leftSection={isLoading ? <Loader size="xs" /> : <IconSend size={16} />}
+                                    >
+                                        Send
+                                    </Button>
+                                }
+                            />
+                        </Group>
+                    </form>
+                </Box>
+            </Stack>
+        </Modal>
+    );
+}; 

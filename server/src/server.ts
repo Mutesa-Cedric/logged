@@ -4,6 +4,7 @@ import cors = require('cors');
 import bodyParser = require('body-parser');
 import cookieParser = require('cookie-parser');
 import { createServer } from 'http';
+import aiRoutes from './modules/api/aiRoutes';
 import serverRoutes from './modules/api/serverRoutes';
 import { SocketService } from './modules/websocket/socketService';
 import { connectDatabase } from './utils/database';
@@ -65,6 +66,7 @@ app.use((req, res, next) => {
 });
 
 app.use('/api/servers', serverRoutes);
+app.use('/api/ai', aiRoutes);
 
 app.get('/', (req, res) => {
   res.send('Logged - Log Viewer Server');

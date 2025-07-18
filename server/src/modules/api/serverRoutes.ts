@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { sshService, ServerConnection as SSHConnection, LogCommand } from '../ssh/sshService';
 import { userService } from '../database/userService';
+import { aiService } from '../ai/aiService';
 import isAuthenticated, { AuthenticatedRequest, requireAuth } from '../../middlewares/auth';
 
 const router = Router();
@@ -602,6 +603,8 @@ function getLogLevel(content: string): 'error' | 'warn' | 'info' | 'debug' | 'de
 
     return 'default';
 }
+
+
 
 const serverRoutes = router;
 export default serverRoutes;

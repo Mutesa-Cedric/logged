@@ -23,6 +23,7 @@ import {
     IconAlertCircle,
     IconAlertTriangle,
     IconArrowDown,
+    IconBrain,
     IconCheck,
     IconClearAll,
     IconDownload,
@@ -34,7 +35,9 @@ import {
 } from '@tabler/icons-react';
 import { useAtom } from 'jotai';
 import { useEffect, useRef, useState } from 'react';
+import { AIChatModal } from '../components/AIChatModal';
 import { useSocket } from '../hooks/useSocket';
+import { themeUtils, useTheme } from '../lib/theme';
 import { useConnections } from '../services/connections';
 import {
     activeConnectionIdAtom,
@@ -42,7 +45,6 @@ import {
     socketConnectedAtom,
     userPreferencesAtom
 } from '../store/atoms';
-import { useTheme, themeUtils } from '../lib/theme';
 
 interface LogCommand {
     type: 'command' | 'file';
@@ -61,6 +63,7 @@ export const LogsPage = () => {
     const [isExecuting, setIsExecuting] = useState(false);
     const [lastError, setLastError] = useState<string | null>(null);
     const [commandHistory, setCommandHistory] = useState<Array<{ command: string, timestamp: Date, success: boolean, error?: string }>>([]);
+    const [isAIChatOpen, setIsAIChatOpen] = useState(false);
 
     const surfaceColors = themeUtils.getSurfaceColors(isDark);
 
@@ -771,9 +774,22 @@ export const LogsPage = () => {
                             </Badge>
                         )}
                     </Group>
-                    <Text size="xs" c="dimmed">
-                        {filteredLogs.length} entries shown
-                    </Text>
+                    <Group gap="xs">
+                        <Text size="xs" c="dimmed">
+                            {filteredLogs.length} entries shown
+                        </Text>
+                        {logs.length > 0 && (
+                            <Button
+                                onClick={() => setIsAIChatOpen(true)}
+                                size="xs"
+                                variant="light"
+                                color="blue"
+                                leftSection={<IconBrain size={14} />}
+                            >
+                                Ask AI
+                            </Button>
+                        )}
+                    </Group>
                 </Group>
 
                 <ScrollArea h={450} p="md" ref={logContainerRef}>
@@ -832,6 +848,13 @@ export const LogsPage = () => {
                     <div ref={endOfLogsRef} />
                 </ScrollArea>
             </Card>
+
+            {/* AI Chat Modal */}
+            <AIChatModal
+                isOpen={isAIChatOpen}
+                onClose={() => setIsAIChatOpen(false)}
+                logs={logs}
+            />
         </Stack>
     );
 }; 
