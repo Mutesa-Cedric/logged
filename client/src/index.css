@@ -184,6 +184,28 @@ select,
     }
 }
 
+@keyframes modalExpand {
+    from {
+        transform: scale(0.95);
+        opacity: 0.8;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes modalContract {
+    from {
+        transform: scale(1.02);
+        opacity: 0.9;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 .logged-glass {
     backdrop-filter: var(--logged-backdrop-blur);
     -webkit-backdrop-filter: var(--logged-backdrop-blur);

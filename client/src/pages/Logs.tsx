@@ -775,9 +775,9 @@ export const LogsPage = () => {
                         )}
                     </Group>
                     <Group gap="xs">
-                        <Text size="xs" c="dimmed">
-                            {filteredLogs.length} entries shown
-                        </Text>
+                    <Text size="xs" c="dimmed">
+                        {filteredLogs.length} entries shown
+                    </Text>
                         {logs.length > 0 && (
                             <Button
                                 onClick={() => setIsAIChatOpen(true)}

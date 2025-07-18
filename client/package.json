@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/react": "^1.2.12",
     "@clerk/clerk-react": "^5.13.2",
     "@mantine/core": "^7.13.2",
     "@mantine/dates": "^7.13.2",
@@ -22,12 +23,14 @@
     "@tailwindcss/vite": "^4.1.11",
     "@tanstack/react-query": "^5.59.16",
     "@tanstack/react-query-devtools": "^5.59.16",
+    "ai": "^4.3.19",
     "axios": "^1.7.7",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.13",
     "jotai": "^2.10.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^7.1.1",
     "socket.io-client": "^4.8.1",
     "tailwindcss": "^4.1.11"

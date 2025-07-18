@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { sshService, ServerConnection as SSHConnection, LogCommand } from '../ssh/sshService';
-import { userService } from '../database/userService';
-import { aiService } from '../ai/aiService';
 import isAuthenticated, { AuthenticatedRequest, requireAuth } from '../../middlewares/auth';
+import { userService } from '../database/userService';
+import { LogCommand, ServerConnection as SSHConnection, sshService } from '../ssh/sshService';
 
 const router = Router();
 
@@ -160,7 +159,7 @@ router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
         }
 
         if (!connection.id) {
-            connection.id = req.isGuest 
+            connection.id = req.isGuest
                 ? `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
                 : `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         }
@@ -603,7 +602,6 @@ function getLogLevel(content: string): 'error' | 'warn' | 'info' | 'debug' | 'de
 
     return 'default';
 }
-
 
 
 const serverRoutes = router;
