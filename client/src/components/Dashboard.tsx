@@ -28,10 +28,10 @@ import {
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import { useAtom } from 'jotai';
+import { useAtom, useSetAtom } from 'jotai';
 import { useNavigate } from 'react-router-dom';
 import { useSocket } from '../hooks/useSocket';
-
+import { addConnectionModalAtom } from '../store/atoms';
 import { useConnections } from '../services/connections';
 import {
     authModalAtom,
@@ -114,9 +114,9 @@ const ConnectionCard = ({ connection, onEdit, onConnect }: ConnectionCardProps) 
                         {isConnected ? 'Active' : 'Inactive'}
                     </Badge>
                     {onConnect && (
-                        <ActionIcon 
-                            variant="light" 
-                            color="blue" 
+                        <ActionIcon
+                            variant="light"
+                            color="blue"
                             size="sm"
                             onClick={onConnect}
                         >
@@ -124,9 +124,9 @@ const ConnectionCard = ({ connection, onEdit, onConnect }: ConnectionCardProps) 
                         </ActionIcon>
                     )}
                     {onEdit && (
-                        <ActionIcon 
-                            variant="subtle" 
-                            color="gray" 
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             size="sm"
                             onClick={onEdit}
                         >
@@ -146,7 +146,7 @@ export const Dashboard = () => {
     const [, setAuthModal] = useAtom(authModalAtom);
     const [socketConnected] = useAtom(socketConnectedAtom);
     const [logStreaming] = useAtom(logStreamingAtom);
-
+    const setShowAddConnectionModal = useSetAtom(addConnectionModalAtom);
     const { data: connections, isLoading: connectionsLoading } = useConnections();
     const { logs } = useSocket();
 
@@ -218,8 +218,8 @@ export const Dashboard = () => {
                                     <Text size="sm">
                                         Create an account to save connections and access all features
                                     </Text>
-                                    <Button 
-                                        size="xs" 
+                                    <Button
+                                        size="xs"
                                         variant="light"
                                         onClick={() => setAuthModal({ open: true, mode: 'signUp' })}
                                     >
@@ -232,7 +232,7 @@ export const Dashboard = () => {
 
                     <Button
                         leftSection={<IconPlus size={16} />}
-                        onClick={() => navigate(toPath('/connections'))}
+                        onClick={() => setShowAddConnectionModal({ open: true, editingConnection: null })}
                     >
                         Add Connection
                     </Button>
@@ -252,8 +252,8 @@ export const Dashboard = () => {
                     <Title order={3} size="h4">
                         Recent Connections
                     </Title>
-                    <Button 
-                        variant="light" 
+                    <Button
+                        variant="light"
                         size="sm"
                         onClick={() => navigate(toPath('/connections'))}
                     >
@@ -270,8 +270,8 @@ export const Dashboard = () => {
                 ) : connections && connections.length > 0 ? (
                     <Stack gap="sm">
                         {connections.slice(0, 4).map((connection) => (
-                            <ConnectionCard 
-                                key={connection.id} 
+                            <ConnectionCard
+                                key={connection.id}
                                 connection={connection}
                                 onEdit={() => navigate(toPath('/connections'))}
                                 onConnect={() => navigate(toPath('/logs'))}

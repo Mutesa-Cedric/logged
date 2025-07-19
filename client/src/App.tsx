@@ -11,6 +11,7 @@ import { tokenManager } from './lib/api';
 import { isGuestModeAtom } from './store/atoms';
 import { withErrorBoundary } from './components/ErrorBoundary';
 import AuthModal from './components/AuthModal';
+import { AddConnectionModal } from './components/AddConnectionModal';
 
 function App() {
   const { isLoaded, isSignedIn, user } = useUser();
@@ -211,6 +212,7 @@ function App() {
       />
     </Routes>
     <AuthModal />
+    <AddConnectionModal />
     </>
   );
 }

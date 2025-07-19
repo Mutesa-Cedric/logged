@@ -39,7 +39,8 @@ import {
     isGuestModeAtom,
     logStreamingAtom,
     sidebarCollapsedAtom,
-    socketConnectedAtom
+    socketConnectedAtom,
+    addConnectionModalAtom
 } from '../../store/atoms';
 import ThemeToggle from '../ThemeToggle';
 
@@ -69,6 +70,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
     const [logStreaming] = useAtom(logStreamingAtom);
     const [socketConnected] = useAtom(socketConnectedAtom);
     const [, setAuthModal] = useAtom(authModalAtom);
+    const [, setAddConnectionModal] = useAtom(addConnectionModalAtom);
 
 
     useEffect(() => {
@@ -294,7 +296,12 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
 
                     <Group gap="xs">
                         <Tooltip label="Add New Connection">
-                            <ActionIcon variant="light" color="blue" size="lg">
+                            <ActionIcon 
+                                variant="light" 
+                                color="blue" 
+                                size="lg"
+                                onClick={() => setAddConnectionModal({ open: true, editingConnection: null })}
+                            >
                                 <IconPlus size={18} />
                             </ActionIcon>
                         </Tooltip>

@@ -1,5 +1,6 @@
 import { atom } from 'jotai';
 import { atomWithStorage } from 'jotai/utils';
+import type { ServerConnection } from '../services/connections';
 
 export const userPreferencesAtom = atomWithStorage('user-preferences', {
     theme: 'light' as 'light' | 'dark' | 'auto',
@@ -23,7 +24,10 @@ export const logStreamingAtom = atom(false);
 export const logSessionIdAtom = atom<string | null>(null);
 export const logCountAtom = atom(0);
 
-export const addConnectionModalAtom = atom(false);
+export const addConnectionModalAtom = atom<{ open: boolean; editingConnection: ServerConnection | null }>({ 
+    open: false, 
+    editingConnection: null 
+});
 export const editConnectionModalAtom = atom<string | null>(null);
 export const deleteConnectionModalAtom = atom<string | null>(null);
 
