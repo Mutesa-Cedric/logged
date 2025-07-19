@@ -22,23 +22,25 @@ import {
     IconServer,
     IconTrash,
 } from '@tabler/icons-react';
-import {
-    useConnections,
-    useDeleteConnection,
-    useTestConnection,
-    useConnectToServer,
-    useDisconnectFromServer
-} from '../services/connections';
+import { useAtom } from 'jotai';
 import type {
     ServerConnection,
 } from '../services/connections';
-import { useAtom } from 'jotai';
-import { isGuestModeAtom, addConnectionModalAtom } from '../store/atoms';
+import {
+    useConnections,
+    useConnectToServer,
+    useDeleteConnection,
+    useDisconnectFromServer,
+    useTestConnection
+} from '../services/connections';
+import { addConnectionModalAtom, isGuestModeAtom, connectionStatusAtom, activeConnectionIdAtom } from '../store/atoms';
 
 
 export const ConnectionsPage = () => {
     const [isGuestMode] = useAtom(isGuestModeAtom);
     const [, setAddConnectionModal] = useAtom(addConnectionModalAtom);
+    const [connectionStatus] = useAtom(connectionStatusAtom);
+    const [activeConnectionId] = useAtom(activeConnectionIdAtom);
 
     const { data: connections, isLoading } = useConnections();
     const deleteConnection = useDeleteConnection();
@@ -61,12 +63,30 @@ export const ConnectionsPage = () => {
 
     const handleTestConnection = async (connection: ServerConnection) => {
         try {
-            await testConnection.mutateAsync({
+            const hasKey = connection.encryptedPrivateKey || connection.tempPrivateKey;
+            
+            const testData = {
                 host: connection.host,
                 port: connection.port,
                 username: connection.username,
-                password: 'test-password'
-            });
+                ...(hasKey 
+                    ? {
+                        privateKey: isGuestMode 
+                            ? connection.tempPrivateKey 
+                            : connection.encryptedPrivateKey ? atob(connection.encryptedPrivateKey) : '',
+                        passphrase: isGuestMode 
+                            ? connection.tempPassphrase 
+                            : connection.encryptedPassphrase ? atob(connection.encryptedPassphrase) : undefined
+                    }
+                    : {
+                        password: isGuestMode 
+                            ? connection.tempPassword 
+                            : connection.encryptedPassword ? atob(connection.encryptedPassword) : ''
+                    }
+                )
+            };
+
+            await testConnection.mutateAsync(testData);
         } catch (error) {
             console.error('Error testing connection:', error);
         }
@@ -89,11 +109,9 @@ export const ConnectionsPage = () => {
         }
     };
 
-    const getConnectionStatus = (connection: ServerConnection): 'connected' | 'disconnected' => {
-        if (connection.lastUsed) {
-            const lastUsed = new Date(connection.lastUsed);
-            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-            return lastUsed > fiveMinutesAgo ? 'connected' : 'disconnected';
+    const getConnectionStatus = (connection: ServerConnection): 'connected' | 'disconnected' | 'connecting' => {
+        if (activeConnectionId === connection.id) {
+            return connectionStatus;
         }
         return 'disconnected';
     };
@@ -161,11 +179,11 @@ export const ConnectionsPage = () => {
 
                                     <Group gap="xs">
                                         <Badge
-                                            color={status === 'connected' ? 'green' : 'gray'}
+                                            color={status === 'connected' ? 'green' : status === 'connecting' ? 'blue' : 'gray'}
                                             variant="light"
                                             size="sm"
                                         >
-                                            {status === 'connected' ? 'Active' : 'Inactive'}
+                                            {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting...' : 'Disconnected'}
                                         </Badge>
 
                                         <Button
@@ -179,14 +197,15 @@ export const ConnectionsPage = () => {
                                         </Button>
 
                                         <Button
-                                            variant="light"
+                                            variant={status === 'connected' ? 'filled' : 'light'}
                                             size="xs"
-                                            color="blue"
+                                            color={status === 'connected' ? 'green' : 'blue'}
                                             leftSection={<IconPlugConnected size={14} />}
                                             onClick={() => handleConnect(connection)}
-                                            loading={connectToServer.isPending}
+                                            loading={connectToServer.isPending || status === 'connecting'}
+                                            disabled={status === 'connected'}
                                         >
-                                            Connect
+                                            {status === 'connected' ? 'Connected' : 'Connect'}
                                         </Button>
 
                                         <Menu width={180}>

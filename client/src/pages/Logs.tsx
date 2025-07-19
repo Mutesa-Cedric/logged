@@ -28,6 +28,7 @@ import {
     IconClearAll,
     IconDownload,
     IconFilter,
+    IconPlugConnected,
     IconRefresh,
     IconSearch,
     IconTerminal2,
@@ -38,11 +39,11 @@ import { useEffect, useRef, useState } from 'react';
 import { AIChatModal } from '../components/AIChatModal';
 import { useSocket } from '../hooks/useSocket';
 import { themeUtils, useTheme } from '../lib/theme';
-import { useConnections } from '../services/connections';
+import { useConnections, useConnectToServer } from '../services/connections';
 import {
     activeConnectionIdAtom,
+    connectionStatusAtom,
     logStreamingAtom,
-    socketConnectedAtom,
     userPreferencesAtom
 } from '../store/atoms';
 
@@ -68,11 +69,12 @@ export const LogsPage = () => {
     const surfaceColors = themeUtils.getSurfaceColors(isDark);
 
     const [activeConnectionId, setActiveConnectionId] = useAtom(activeConnectionIdAtom);
+    const [connectionStatus] = useAtom(connectionStatusAtom);
     const [isStreaming, setIsStreaming] = useAtom(logStreamingAtom);
-    const [socketConnected] = useAtom(socketConnectedAtom);
     const [userPreferences, setUserPreferences] = useAtom(userPreferencesAtom);
 
     const { data: connections } = useConnections();
+    const connectToServer = useConnectToServer();
     const {
         logs,
         activeSession,
@@ -104,6 +106,12 @@ export const LogsPage = () => {
         container.addEventListener('scroll', handleScroll);
         return () => container.removeEventListener('scroll', handleScroll);
     }, [userPreferences, setUserPreferences]);
+
+    useEffect(() => {
+        if (connections?.length && !activeConnectionId) {
+            setActiveConnectionId(connections[0].id);
+        }
+    }, [connections, activeConnectionId, setActiveConnectionId]);
 
     const activeConnection = connections?.find(conn => conn.id === activeConnectionId);
 
@@ -469,6 +477,23 @@ export const LogsPage = () => {
         );
     };
 
+    const handleConnect = async () => {
+        if (!activeConnectionId) {
+            notifications.show({
+                title: 'No Connection Selected',
+                message: 'Please select a connection first',
+                color: 'orange',
+            });
+            return;
+        }
+
+        try {
+            await connectToServer.mutateAsync(activeConnectionId);
+        } catch {
+            // Error notification is handled in the service hook
+        }
+    };
+
     return (
         <Stack gap="md">
             {/* Header */}
@@ -496,12 +521,24 @@ export const LogsPage = () => {
                         size="sm"
                         disabled={!connections?.length}
                     />
-                    <Badge
-                        color={socketConnected && activeConnectionId ? 'green' : 'gray'}
-                        variant="light"
-                    >
-                        {isStreaming ? 'STREAMING' : socketConnected ? 'CONNECTED' : 'OFFLINE'}
-                    </Badge>
+                    <Tooltip label={connectionStatus === 'connected' ? "Already connected" : "Connect to server"}>
+                        <Button
+                            size="sm"
+                            variant={connectionStatus === 'connected' ? 'filled' : 'light'}
+                            color={connectionStatus === 'connected' ? 'green' : 'blue'}
+                            leftSection={<IconPlugConnected size={14} />}
+                            onClick={handleConnect}
+                            loading={connectToServer.isPending || connectionStatus === 'connecting'}
+                            disabled={!activeConnectionId || connectionStatus === 'connected'}
+                        >
+                            {connectionStatus === 'connected' ? 'Connected' : 'Connect'}
+                        </Button>
+                    </Tooltip>
+                    {isStreaming && (
+                        <Badge color="red" variant="light">
+                            LIVE STREAMING
+                        </Badge>
+                    )}
                     {isExecuting && (
                         <Badge color="blue" variant="light">
                             EXECUTING

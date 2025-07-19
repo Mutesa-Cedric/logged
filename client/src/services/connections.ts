@@ -5,7 +5,7 @@ import { useAuth, useUser } from '@clerk/clerk-react';
 import { useAtom } from 'jotai';
 import { useLocation } from 'react-router-dom';
 import { api, tokenManager } from '../lib/api';
-import { isGuestModeAtom } from '../store/atoms';
+import { isGuestModeAtom, connectionStatusAtom, activeConnectionIdAtom } from '../store/atoms';
 
 export interface ServerConnection {
     id: string;
@@ -407,10 +407,18 @@ export const useTestConnection = () => {
 export const useConnectToServer = () => {
     const queryClient = useQueryClient();
     const [isGuestMode] = useAtom(isGuestModeAtom);
+    const [, setConnectionStatus] = useAtom(connectionStatusAtom);
+    const [, setActiveConnectionId] = useAtom(activeConnectionIdAtom);
 
     return useMutation({
-        mutationFn: (connectionId: string) => connectionAPI.connectToServer(connectionId, isGuestMode),
+        mutationFn: (connectionId: string) => {
+            setConnectionStatus('connecting');
+            return connectionAPI.connectToServer(connectionId, isGuestMode);
+        },
         onSuccess: (_, connectionId) => {
+            setConnectionStatus('connected');
+            setActiveConnectionId(connectionId);
+            
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
@@ -423,6 +431,8 @@ export const useConnectToServer = () => {
             });
         },
         onError: (error: AxiosError<{ error: string }>) => {
+            setConnectionStatus('disconnected');
+            
             notifications.show({
                 title: 'Connection Failed',
                 message: error.response?.data?.error || 'Failed to connect to server',
@@ -434,10 +444,15 @@ export const useConnectToServer = () => {
 
 export const useDisconnectFromServer = () => {
     const queryClient = useQueryClient();
+    const [, setConnectionStatus] = useAtom(connectionStatusAtom);
+    const [, setActiveConnectionId] = useAtom(activeConnectionIdAtom);
 
     return useMutation({
         mutationFn: connectionAPI.disconnectFromServer,
         onSuccess: (_, connectionId) => {
+            setConnectionStatus('disconnected');
+            setActiveConnectionId(null);
+            
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
