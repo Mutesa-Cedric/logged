@@ -9,6 +9,9 @@ import {
     Title,
     SimpleGrid,
     ThemeIcon,
+    Avatar,
+    Menu,
+    UnstyledButton,
 } from '@mantine/core';
 import {
     IconCode,
@@ -17,16 +20,24 @@ import {
     IconTerminal2,
     IconBolt,
     IconDeviceFloppy,
+    IconUser,
+    IconSettings,
+    IconLogout,
+    IconDashboard,
 } from '@tabler/icons-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useUser, useClerk } from '@clerk/clerk-react';
 import { useTheme, themeUtils } from '../lib/theme';
 import ThemeToggle from './ThemeToggle';
 import { useAtom } from 'jotai';
 import { authModalAtom } from '../store/atoms';
+import { notifications } from '@mantine/notifications';
 
 export const LandingPage = () => {
     const navigate = useNavigate();
     const { isDark } = useTheme();
+    const { user, isSignedIn, isLoaded } = useUser();
+    const { signOut } = useClerk();
     const [, setAuthModal] = useAtom(authModalAtom);
 
     const handleGuestAccess = () => {
@@ -39,6 +50,27 @@ export const LandingPage = () => {
 
     const handleSignUp = () => {
         setAuthModal({ open: true, mode: 'signUp' });
+    };
+
+    const handleSignOut = async () => {
+        try {
+            await signOut();
+            notifications.show({
+                title: 'Signed Out',
+                message: 'You have been successfully signed out',
+                color: 'blue',
+            });
+        } catch {
+            notifications.show({
+                title: 'Error',
+                message: 'Failed to sign out',
+                color: 'red',
+            });
+        }
+    };
+
+    const handleGoToDashboard = () => {
+        navigate('/dashboard');
     };
 
     const features = [
@@ -94,21 +126,70 @@ export const LandingPage = () => {
 
                     <Group gap="sm">
                         <ThemeToggle variant="icon" />
-                        <Button
-                            variant="subtle"
-                            onClick={handleSignIn}
-                            size="sm"
-                        >
-                            Sign In
-                        </Button>
-                        <Button
-                            onClick={handleSignUp}
-                            size="sm"
-                            gradient={{ from: 'blue', to: 'violet' }}
-                            variant="gradient"
-                        >
-                            Sign Up
-                        </Button>
+                        {isLoaded && isSignedIn ? (
+                            <Menu width={200}>
+                                <Menu.Target>
+                                    <UnstyledButton>
+                                        <Group gap="xs">
+                                            <Avatar
+                                                src={user?.imageUrl}
+                                                size="sm"
+                                                radius="xl"
+                                            >
+                                                {user?.firstName?.[0] || user?.emailAddresses[0]?.emailAddress[0]?.toUpperCase()}
+                                            </Avatar>
+                                            <Text size="sm" fw={500} visibleFrom="sm">
+                                                {user?.firstName || user?.emailAddresses[0]?.emailAddress}
+                                            </Text>
+                                        </Group>
+                                    </UnstyledButton>
+                                </Menu.Target>
+
+                                <Menu.Dropdown>
+                                    <Menu.Label>Account</Menu.Label>
+                                    <Menu.Item
+                                        leftSection={<IconDashboard size={14} />}
+                                        onClick={handleGoToDashboard}
+                                    >
+                                        Dashboard
+                                    </Menu.Item>
+                                    <Menu.Item leftSection={<IconUser size={14} />}>
+                                        Profile
+                                    </Menu.Item>
+                                    <Menu.Item leftSection={<IconSettings size={14} />}>
+                                        Settings
+                                    </Menu.Item>
+
+                                    <Menu.Divider />
+
+                                    <Menu.Item
+                                        leftSection={<IconLogout size={14} />}
+                                        onClick={handleSignOut}
+                                        color="red"
+                                    >
+                                        Sign Out
+                                    </Menu.Item>
+                                </Menu.Dropdown>
+                            </Menu>
+                        ) : (
+                            <>
+                                <Button
+                                    variant="subtle"
+                                    onClick={handleSignIn}
+                                    size="sm"
+                                >
+                                    Sign In
+                                </Button>
+                                <Button
+                                    onClick={handleSignUp}
+                                    size="sm"
+                                    gradient={{ from: 'blue', to: 'violet' }}
+                                    variant="gradient"
+                                >
+                                    Sign Up
+                                </Button>
+                            </>
+                        )}
                     </Group>
                 </Group>
             </Container>

@@ -46,7 +46,7 @@ function App() {
     initializeAuth();
   }, [isLoaded, isSignedIn, getToken, user, isGuestMode, location.pathname]);
 
-  if (!isLoaded && !isGuestMode) {
+  if (!isLoaded && !isGuestMode && location.pathname !== '/') {
     return (
       <AppLoadingScreen />
     );
@@ -64,9 +64,7 @@ function App() {
       <Route
         path="/"
         element={
-          !isLoaded ? (
-            <AppLoadingScreen />
-          ) : isSignedIn ? (
+          isLoaded && isSignedIn ? (
             <Navigate to="/dashboard" replace />
           ) : (
             <LandingPage />
