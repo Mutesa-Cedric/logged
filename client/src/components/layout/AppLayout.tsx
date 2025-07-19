@@ -82,7 +82,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                 } else {
                     tokenManager.setToken(null);
                 }
-            } catch (error) {
+            } catch {
                 tokenManager.setToken(null);
             }
         };
@@ -129,7 +129,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                 message: 'You have been successfully signed out',
                 color: 'blue',
             });
-        } catch (error) {
+        } catch {
             notifications.show({
                 title: 'Error',
                 message: 'Failed to sign out',

@@ -55,7 +55,7 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
 
     // Check if user is authenticated for AI features
     const isAuthenticated = !isGuestMode && user;
-    
+
     const {
         messages,
         input,
@@ -139,10 +139,10 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                             );
                         }
                         return (
-                            <Code 
-                                block 
-                                c="blue" 
-                                bg={isDark ? 'dark.5' : 'gray.0'} 
+                            <Code
+                                block
+                                c="blue"
+                                bg={isDark ? 'dark.5' : 'gray.0'}
                                 fz="xs"
                                 p="xs"
                                 style={{ whiteSpace: 'pre-wrap' }}
@@ -162,12 +162,12 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                         </Text>
                     ),
                     blockquote: ({ children }) => (
-                        <Box 
-                            p="sm" 
-                            bg={isDark ? 'dark.5' : 'gray.0'} 
-                            style={{ 
+                        <Box
+                            p="sm"
+                            bg={isDark ? 'dark.5' : 'gray.0'}
+                            style={{
                                 borderLeft: `3px solid ${theme.colors.blue[6]}`,
-                                borderRadius: theme.radius.sm 
+                                borderRadius: theme.radius.sm
                             }}
                             mb="xs"
                         >
@@ -221,9 +221,9 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                                     AI Log Analysis
                                 </Text>
                                 {isFullscreen && (
-                                    <Badge 
-                                        size="xs" 
-                                        variant="light" 
+                                    <Badge
+                                        size="xs"
+                                        variant="light"
                                         color="blue"
                                         style={{
                                             transition: 'all 0.2s ease',
@@ -240,8 +240,8 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                             </Text>
                         </Box>
                     </Group>
-                    <Tooltip 
-                        label={isFullscreen ? "Exit Fullscreen" : "Go Fullscreen"} 
+                    <Tooltip
+                        label={isFullscreen ? "Exit Fullscreen" : "Go Fullscreen"}
                         position="bottom"
                         withArrow
                     >
@@ -301,8 +301,8 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                 },
             }}
         >
-            <Stack 
-                h={isFullscreen ? "calc(100vh - 120px)" : 600} 
+            <Stack
+                h={isFullscreen ? "calc(100vh - 120px)" : 600}
                 gap={0}
                 style={{
                     transition: 'height 0.3s ease'
@@ -348,9 +348,9 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                                 AI log analysis requires an account. Sign in to unlock AI-powered insights.
                             </Text>
                         </Box>
-                        <Alert 
-                            color="blue" 
-                            variant="light" 
+                        <Alert
+                            color="blue"
+                            variant="light"
                             style={{ maxWidth: 400 }}
                             icon={<IconBrain size={16} />}
                         >
@@ -358,7 +358,7 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                                 Get intelligent log analysis, pattern detection, and actionable recommendations with AI.
                             </Text>
                         </Alert>
-                        <Button 
+                        <Button
                             leftSection={<IconLogin size={16} />}
                             onClick={handleAuthRequired}
                             size="md"
@@ -371,114 +371,114 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                         {/* Messages Area */}
                         <ScrollArea flex={1} p="md">
                             {messages.length === 0 ? (
-                        <Stack align="center" py="xl" gap="lg">
-                            <ThemeIcon color="blue" variant="light" size={60}>
-                                <IconBrain size={30} />
-                            </ThemeIcon>
-                            <Box ta="center">
-                                <Text size="lg" fw={600} mb="xs">
-                                    Ask about your logs
-                                </Text>
-                                <Text size="sm" c="dimmed" mb="xl">
-                                    I can help you analyze patterns, identify issues, and provide insights.
-                                </Text>
-                            </Box>
-
-                            <SimpleGrid cols={{ base: 1, sm: 2 }} w="100%">
-                                {suggestedQuestions.map((question, index) => (
-                                    <Card
-                                        key={index}
-                                        padding="sm"
-                                        withBorder
-                                        style={{
-                                            cursor: 'pointer',
-                                            backgroundColor: themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
-                                            borderColor: themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
-                                        }}
-                                        onClick={() => handleInputChange({ target: { value: question } } as any)}
-                                    >
-                                        <Text size="sm" c="dimmed">
-                                            {question}
+                                <Stack align="center" py="xl" gap="lg">
+                                    <ThemeIcon color="blue" variant="light" size={60}>
+                                        <IconBrain size={30} />
+                                    </ThemeIcon>
+                                    <Box ta="center">
+                                        <Text size="lg" fw={600} mb="xs">
+                                            Ask about your logs
                                         </Text>
-                                    </Card>
-                                ))}
-                            </SimpleGrid>
-                        </Stack>
-                    ) : (
-                        <Stack gap="md">
-                            {messages.map((msg, index) => (
-                                <Group
-                                    key={index}
-                                    justify={msg.role === 'user' ? 'flex-end' : 'flex-start'}
-                                    align="flex-start"
-                                >
-                                    <Card
-                                        p="md"
-                                        radius="md"
-                                        maw="80%"
-                                        style={{
-                                            backgroundColor: msg.role === 'user'
-                                                ? theme.colors.blue[6]
-                                                : themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
-                                            borderColor: msg.role === 'user'
-                                                ? theme.colors.blue[6]
-                                                : themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
-                                        }}
-                                    >
-                                        <Group gap="xs" mb="xs">
-                                            <ThemeIcon
-                                                color={msg.role === 'user' ? 'white' : 'blue'}
-                                                variant="light"
-                                                size="sm"
-                                            >
-                                                {msg.role === 'user' ? <IconMessage size={12} /> : <IconBrain size={12} />}
-                                            </ThemeIcon>
-                                            <Text size="xs" c={msg.role === 'user' ? 'white' : 'dimmed'} fw={500}>
-                                                {msg.role === 'user' ? 'You' : 'AI Assistant'}
-                                            </Text>
-                                        </Group>
-                                        {msg.role === 'user' ? (
-                                            <Text
-                                                size="sm"
-                                                c="white"
-                                                style={{ whiteSpace: 'pre-wrap' }}
-                                            >
-                                                {msg.content}
-                                            </Text>
-                                        ) : (
-                                            <Box>
-                                                {formatAIResponse(msg.content)}
-                                            </Box>
-                                        )}
-                                    </Card>
-                                </Group>
-                            ))}
+                                        <Text size="sm" c="dimmed" mb="xl">
+                                            I can help you analyze patterns, identify issues, and provide insights.
+                                        </Text>
+                                    </Box>
 
-                            {isLoading && (
-                                <Group justify="flex-start" align="flex-start">
-                                    <Card
-                                        p="md"
-                                        radius="md"
-                                        style={{
-                                            backgroundColor: themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
-                                            borderColor: themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
-                                        }}
-                                    >
-                                        <Group gap="xs">
-                                            <Loader size="sm" />
-                                            <Text size="sm" c="dimmed">
-                                                Analyzing logs...
-                                            </Text>
+                                    <SimpleGrid cols={{ base: 1, sm: 2 }} w="100%">
+                                        {suggestedQuestions.map((question, index) => (
+                                            <Card
+                                                key={index}
+                                                padding="sm"
+                                                withBorder
+                                                style={{
+                                                    cursor: 'pointer',
+                                                    backgroundColor: themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
+                                                    borderColor: themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
+                                                }}
+                                                onClick={() => handleInputChange({ target: { value: question } } as React.ChangeEvent<HTMLInputElement>)}
+                                            >
+                                                <Text size="sm" c="dimmed">
+                                                    {question}
+                                                </Text>
+                                            </Card>
+                                        ))}
+                                    </SimpleGrid>
+                                </Stack>
+                            ) : (
+                                <Stack gap="md">
+                                    {messages.map((msg, index) => (
+                                        <Group
+                                            key={index}
+                                            justify={msg.role === 'user' ? 'flex-end' : 'flex-start'}
+                                            align="flex-start"
+                                        >
+                                            <Card
+                                                p="md"
+                                                radius="md"
+                                                maw="80%"
+                                                style={{
+                                                    backgroundColor: msg.role === 'user'
+                                                        ? theme.colors.blue[6]
+                                                        : themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
+                                                    borderColor: msg.role === 'user'
+                                                        ? theme.colors.blue[6]
+                                                        : themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
+                                                }}
+                                            >
+                                                <Group gap="xs" mb="xs">
+                                                    <ThemeIcon
+                                                        color={msg.role === 'user' ? 'white' : 'blue'}
+                                                        variant="light"
+                                                        size="sm"
+                                                    >
+                                                        {msg.role === 'user' ? <IconMessage size={12} /> : <IconBrain size={12} />}
+                                                    </ThemeIcon>
+                                                    <Text size="xs" c={msg.role === 'user' ? 'white' : 'dimmed'} fw={500}>
+                                                        {msg.role === 'user' ? 'You' : 'AI Assistant'}
+                                                    </Text>
+                                                </Group>
+                                                {msg.role === 'user' ? (
+                                                    <Text
+                                                        size="sm"
+                                                        c="white"
+                                                        style={{ whiteSpace: 'pre-wrap' }}
+                                                    >
+                                                        {msg.content}
+                                                    </Text>
+                                                ) : (
+                                                    <Box>
+                                                        {formatAIResponse(msg.content)}
+                                                    </Box>
+                                                )}
+                                            </Card>
                                         </Group>
-                                    </Card>
-                                </Group>
+                                    ))}
+
+                                    {isLoading && (
+                                        <Group justify="flex-start" align="flex-start">
+                                            <Card
+                                                p="md"
+                                                radius="md"
+                                                style={{
+                                                    backgroundColor: themeUtils.getThemedColor('#f8fafc', '#2c2e33', isDark),
+                                                    borderColor: themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[6], isDark),
+                                                }}
+                                            >
+                                                <Group gap="xs">
+                                                    <Loader size="sm" />
+                                                    <Text size="sm" c="dimmed">
+                                                        Analyzing logs...
+                                                    </Text>
+                                                </Group>
+                                            </Card>
+                                        </Group>
+                                    )}
+                                </Stack>
                             )}
-                        </Stack>
-                    )}
                             <div ref={messagesEndRef} />
                         </ScrollArea>
 
-                        {/* Input Area */}      
+                        {/* Input Area */}
                         <Box p="md" style={{
                             borderTop: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
                         }}>

@@ -35,6 +35,38 @@ export class SSHService extends EventEmitter {
                 host: connection.host,
                 port: connection.port,
                 username: connection.username,
+                readyTimeout: 20000, // 20 second timeout for connection
+                keepaliveInterval: 0, // Disable keepalive for test connections
+                algorithms: {
+                    kex: [
+                        'diffie-hellman-group-exchange-sha256',
+                        'diffie-hellman-group14-sha256',
+                        'diffie-hellman-group16-sha512',
+                        'diffie-hellman-group18-sha512',
+                        'ecdh-sha2-nistp256',
+                        'ecdh-sha2-nistp384',
+                        'ecdh-sha2-nistp521'
+                    ],
+                    cipher: [
+                        'aes128-ctr',
+                        'aes192-ctr', 
+                        'aes256-ctr',
+                        'aes128-gcm',
+                        'aes256-gcm'
+                    ],
+                    serverHostKey: [
+                        'ssh-rsa',
+                        'ecdsa-sha2-nistp256',
+                        'ecdsa-sha2-nistp384',
+                        'ecdsa-sha2-nistp521',
+                        'ssh-ed25519'
+                    ],
+                    hmac: [
+                        'hmac-sha2-256',
+                        'hmac-sha2-512',
+                        'hmac-sha1'
+                    ]
+                }
             };
 
             if (connection.password) {
@@ -247,13 +279,97 @@ export class SSHService extends EventEmitter {
         });
     }
 
-    async testConnection(connection: ServerConnection): Promise<boolean> {
+    async testConnection(connection: ServerConnection): Promise<{
+        success: boolean;
+        error?: string;
+        details?: any;
+    }> {
+        const testId = `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const testConnection = { ...connection, id: testId };
+
+        console.log('🔍 Starting connection test:', {
+            host: connection.host,
+            username: connection.username,
+            port: connection.port,
+            authType: connection.password ? 'password' : connection.privateKey ? 'privateKey' : 'none',
+            testId
+        });
+
         try {
-            await this.connectToServer(connection);
-            this.disconnect(connection.id);
-            return true;
-        } catch (error) {
-            return false;
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error('Connection test timed out after 15 seconds'));
+                }, 15000);
+            });
+
+            const connectPromise = this.connectToServer(testConnection);
+            
+            await Promise.race([connectPromise, timeoutPromise]);
+            
+            console.log('✅ Connection test successful for:', connection.host);
+            this.disconnect(testId);
+            
+            return { success: true };
+        } catch (error: any) {
+            console.error('❌ Connection test failed for:', connection.host, 'Error:', error.message);
+            
+            // Clean up any potential connection
+            this.disconnect(testId);
+            
+            // Parse and categorize the error
+            let errorMessage = error.message || 'Unknown connection error';
+            let errorCategory = 'unknown';
+
+            if (error.code) {
+                switch (error.code) {
+                    case 'ENOTFOUND':
+                        errorCategory = 'dns';
+                        errorMessage = `Host not found: ${connection.host}. Please check the hostname or IP address.`;
+                        break;
+                    case 'ECONNREFUSED':
+                        errorCategory = 'connection';
+                        errorMessage = `Connection refused to ${connection.host}:${connection.port}. The SSH service may not be running or the port may be blocked.`;
+                        break;
+                    case 'ETIMEDOUT':
+                        errorCategory = 'timeout';
+                        errorMessage = `Connection timed out to ${connection.host}:${connection.port}. The host may be unreachable or behind a firewall.`;
+                        break;
+                    case 'EHOSTUNREACH':
+                        errorCategory = 'network';
+                        errorMessage = `Host unreachable: ${connection.host}. Please check your network connection and routing.`;
+                        break;
+                    default:
+                        errorCategory = 'network';
+                        errorMessage = `Network error (${error.code}): ${errorMessage}`;
+                }
+            } else if (errorMessage.includes('All configured authentication methods failed')) {
+                errorCategory = 'auth';
+                errorMessage = 'Authentication failed. Please check your username, password, or SSH key.';
+            } else if (errorMessage.includes('Cannot parse privatekey')) {
+                errorCategory = 'key';
+                errorMessage = 'Invalid SSH private key format. Please check your private key.';
+            } else if (errorMessage.includes('Encrypted private key detected')) {
+                errorCategory = 'key';
+                errorMessage = 'Encrypted private key requires a passphrase. Please provide the correct passphrase.';
+            } else if (errorMessage.includes('Host key verification failed')) {
+                errorCategory = 'hostkey';
+                errorMessage = 'Host key verification failed. The server\'s host key has changed or is not trusted.';
+            } else if (errorMessage.includes('Connection test timed out')) {
+                errorCategory = 'timeout';
+                errorMessage = 'Connection test timed out after 15 seconds. The host may be slow to respond or unreachable.';
+            }
+
+            return {
+                success: false,
+                error: errorMessage,
+                details: {
+                    category: errorCategory,
+                    originalError: error.message,
+                    code: error.code,
+                    host: connection.host,
+                    port: connection.port
+                }
+            };
         }
     }
 

@@ -34,6 +34,8 @@ import {
     useTestConnection
 } from '../services/connections';
 import { addConnectionModalAtom, isGuestModeAtom, connectionStatusAtom, activeConnectionIdAtom } from '../store/atoms';
+import { encryptionManager, isLegacyEncryption } from '../lib/encryption';
+import type { EncryptedData } from '../lib/encryption';
 
 
 export const ConnectionsPage = () => {
@@ -65,23 +67,63 @@ export const ConnectionsPage = () => {
         try {
             const hasKey = connection.encryptedPrivateKey || connection.tempPrivateKey;
             
+            let decryptedPassword = '';
+            let decryptedPrivateKey = '';
+            let decryptedPassphrase = '';
+
+            if (!isGuestMode) {
+                // Check if master key is available
+                if (!encryptionManager.hasMasterKey()) {
+                    throw new Error('Master key not set. Please set up encryption first.');
+                }
+                
+                try {
+                    if (connection.encryptedPassword) {
+                        if (isLegacyEncryption(connection.encryptedPassword)) {
+                            decryptedPassword = typeof connection.encryptedPassword === 'string' 
+                                ? atob(connection.encryptedPassword) 
+                                : atob((connection.encryptedPassword as EncryptedData).encryptedData || '');
+                        } else {
+                            decryptedPassword = encryptionManager.decryptPassword(connection.encryptedPassword as unknown as EncryptedData);
+                        }
+                    }
+
+                    if (connection.encryptedPrivateKey) {
+                        if (isLegacyEncryption(connection.encryptedPrivateKey)) {
+                            decryptedPrivateKey = typeof connection.encryptedPrivateKey === 'string' 
+                                ? atob(connection.encryptedPrivateKey) 
+                                : atob((connection.encryptedPrivateKey as EncryptedData).encryptedData || '');
+                        } else {
+                            decryptedPrivateKey = encryptionManager.decryptPrivateKey(connection.encryptedPrivateKey as unknown as EncryptedData);
+                        }
+                    }
+
+                    if (connection.encryptedPassphrase) {
+                        if (isLegacyEncryption(connection.encryptedPassphrase)) {
+                            decryptedPassphrase = typeof connection.encryptedPassphrase === 'string' 
+                                ? atob(connection.encryptedPassphrase) 
+                                : atob((connection.encryptedPassphrase as EncryptedData).encryptedData || '');
+                        } else {
+                            decryptedPassphrase = encryptionManager.decryptPassword(connection.encryptedPassphrase as unknown as EncryptedData);
+                        }
+                    }
+                } catch (decryptError) {
+                    console.error('Decryption failed:', decryptError);
+                    throw new Error('Failed to decrypt credentials. Please check your master key.');
+                }
+            }
+            
             const testData = {
                 host: connection.host,
                 port: connection.port,
                 username: connection.username,
                 ...(hasKey 
                     ? {
-                        privateKey: isGuestMode 
-                            ? connection.tempPrivateKey 
-                            : connection.encryptedPrivateKey ? atob(connection.encryptedPrivateKey) : '',
-                        passphrase: isGuestMode 
-                            ? connection.tempPassphrase 
-                            : connection.encryptedPassphrase ? atob(connection.encryptedPassphrase) : undefined
+                        privateKey: isGuestMode ? connection.tempPrivateKey : decryptedPrivateKey,
+                        passphrase: isGuestMode ? connection.tempPassphrase : decryptedPassphrase || undefined
                     }
                     : {
-                        password: isGuestMode 
-                            ? connection.tempPassword 
-                            : connection.encryptedPassword ? atob(connection.encryptedPassword) : ''
+                        password: isGuestMode ? connection.tempPassword : decryptedPassword
                     }
                 )
             };
@@ -89,6 +131,8 @@ export const ConnectionsPage = () => {
             await testConnection.mutateAsync(testData);
         } catch (error) {
             console.error('Error testing connection:', error);
+            // Re-throw the error so the mutation can handle it properly
+            throw error;
         }
     };
 

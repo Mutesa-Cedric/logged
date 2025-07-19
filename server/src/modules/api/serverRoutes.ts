@@ -206,12 +206,21 @@ router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
             });
         }
 
-        const isConnected = await sshService.testConnection(connection);
+        const result = await sshService.testConnection(connection);
 
-        res.json({
-            success: isConnected,
-            message: isConnected ? 'Connection successful' : 'Connection failed'
-        });
+        if (result.success) {
+            res.json({
+                success: true,
+                message: 'Connection successful'
+            });
+        } else {
+            // Return detailed error information
+            res.status(400).json({
+                success: false,
+                error: result.error || 'Connection failed',
+                details: result.details || {}
+            });
+        }
     } catch (error) {
         console.error('Test connection error:', error);
         res.status(500).json({

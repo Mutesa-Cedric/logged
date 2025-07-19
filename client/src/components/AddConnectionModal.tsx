@@ -1,6 +1,7 @@
 import {
     Alert,
     Button,
+    FileInput,
     Group,
     Modal,
     NumberInput,
@@ -10,28 +11,26 @@ import {
     Text,
     TextInput,
     Textarea,
-    FileInput,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
+    IconKey,
     IconPlugConnected,
     IconPlugConnectedX,
-    IconUpload,
-    IconKey
+    IconUpload
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useAtom } from 'jotai';
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { encryptionManager } from '../lib/encryption';
+import type { CreateConnectionData } from '../services/connections';
 import {
     useCreateConnection,
-    useUpdateConnection,
     useTestConnection,
+    useUpdateConnection,
 } from '../services/connections';
-import type {
-    ServerConnection,
-    CreateConnectionData
-} from '../services/connections';
-import { useAtom } from 'jotai';
-import { isGuestModeAtom, addConnectionModalAtom } from '../store/atoms';
-import { useNavigate } from 'react-router-dom';
+import { addConnectionModalAtom, encryptionEnabledAtom, isGuestModeAtom } from '../store/atoms';
+import { MasterKeySetup } from './MasterKeySetup';
 
 interface ConnectionForm {
     name: string;
@@ -71,15 +70,14 @@ const validatePrivateKey = (key: string): boolean => {
     return hasValidHeader && hasValidFooter;
 };
 
-interface AddConnectionModalProps {
-    editingConnection?: ServerConnection | null;
-}
 
-export const AddConnectionModal = ({ editingConnection }: AddConnectionModalProps) => {
+export const AddConnectionModal = () => {
     const [modalState, setModalState] = useAtom(addConnectionModalAtom);
     const [isTestingConnection, setIsTestingConnection] = useState(false);
     const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null);
     const [isGuestMode] = useAtom(isGuestModeAtom);
+    const [encryptionEnabled] = useAtom(encryptionEnabledAtom);
+    const [showMasterKeySetup, setShowMasterKeySetup] = useState(false);
     const navigate = useNavigate();
     const createConnection = useCreateConnection();
     const updateConnection = useUpdateConnection();
@@ -127,10 +125,14 @@ export const AddConnectionModal = ({ editingConnection }: AddConnectionModalProp
         setModalState({ open: false, editingConnection: null });
         form.reset();
         setTestResult(null);
-        navigate(toPath('/connections'));
     };
 
     const handleSubmit = async (values: ConnectionForm) => {
+        if (!isGuestMode && !encryptionEnabled) {
+            setShowMasterKeySetup(true);
+            return;
+        }
+
         try {
             const privateKeyContent = values.authType === 'key' ? values.privateKey : '';
 
@@ -143,23 +145,14 @@ export const AddConnectionModal = ({ editingConnection }: AddConnectionModalProp
                     ? (isGuestMode ? {
                         tempPassword: values.password
                     } : {
-                        encryptedPassword: {
-                            encryptedData: btoa(values.password),
-                            salt: 'demo-salt'
-                        }
+                        encryptedPassword: encryptionManager.encryptPassword(values.password)
                     })
                     : (isGuestMode ? {
                         tempPrivateKey: privateKeyContent,
                         tempPassphrase: values.passphrase
                     } : {
-                        encryptedPrivateKey: {
-                            encryptedData: btoa(privateKeyContent),
-                            salt: 'demo-salt'
-                        },
-                        encryptedPassphrase: values.passphrase ? {
-                            encryptedData: btoa(values.passphrase),
-                            salt: 'demo-salt'
-                        } : undefined
+                        encryptedPrivateKey: encryptionManager.encryptPrivateKey(privateKeyContent),
+                        encryptedPassphrase: values.passphrase ? encryptionManager.encryptPassword(values.passphrase) : undefined
                     })
                 )
             };
@@ -174,8 +167,15 @@ export const AddConnectionModal = ({ editingConnection }: AddConnectionModalProp
             }
 
             handleClose();
+            navigate(toPath('/connections'));
         } catch (error) {
             console.error('Error saving connection:', error);
+            if (error instanceof Error && error.message.includes('encryption')) {
+                setTestResult({
+                    success: false,
+                    message: 'Encryption error: ' + error.message
+                });
+            }
         }
     };
 
@@ -215,165 +215,182 @@ export const AddConnectionModal = ({ editingConnection }: AddConnectionModalProp
         }
     };
 
-    // Update form when editing connection changes
-    if (modalState.editingConnection && modalState.editingConnection !== editingConnection) {
-        const connection = modalState.editingConnection;
-        const hasKey = connection.encryptedPrivateKey || connection.tempPrivateKey;
+    useEffect(() => {
+        if (modalState.editingConnection) {
+            const connection = modalState.editingConnection;
+            const hasKey = connection.encryptedPrivateKey || connection.tempPrivateKey;
 
-        form.setValues({
-            name: connection.name,
-            host: connection.host,
-            port: connection.port,
-            username: connection.username,
-            authType: hasKey ? 'key' : 'password',
-            password: '',
-            privateKey: '',
-            passphrase: '',
-        });
-    }
+            form.setValues({
+                name: connection.name,
+                host: connection.host,
+                port: connection.port,
+                username: connection.username,
+                authType: hasKey ? 'key' : 'password',
+                password: '',
+                privateKey: '',
+                passphrase: '',
+            });
+        } else {
+            form.reset();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [modalState.editingConnection]);
+
+    const handleMasterKeySetup = (newMasterKey: string) => {
+        encryptionManager.setMasterKey(newMasterKey);
+        setShowMasterKeySetup(false);
+    };
 
     return (
-        <Modal
-            opened={modalState.open}
-            onClose={handleClose}
-            title={modalState.editingConnection ? 'Edit Connection' : 'Add New Connection'}
-            size="md"
-        >
-            <form onSubmit={form.onSubmit(handleSubmit)}>
-                <Stack gap="md">
-                    <TextInput
-                        label="Connection Name"
-                        placeholder="Production Server"
-                        required
-                        {...form.getInputProps('name')}
-                    />
-
-                    <TextInput
-                        label="Host"
-                        placeholder="server.example.com"
-                        required
-                        {...form.getInputProps('host')}
-                    />
-
-                    <NumberInput
-                        label="Port"
-                        placeholder="22"
-                        min={1}
-                        max={65535}
-                        required
-                        {...form.getInputProps('port')}
-                    />
-
-                    <TextInput
-                        label="Username"
-                        placeholder="admin"
-                        required
-                        {...form.getInputProps('username')}
-                    />
-
-                    <Radio.Group label="Authentication Type" {...form.getInputProps('authType')}>
-                        <Radio value="password" label="Password" className='mt-2' />
-                        <Radio value="key" label="SSH Key" className='mt-2' />
-                    </Radio.Group>
-
-                    {form.values.authType === 'password' && (
-                        <PasswordInput
-                            label="Password"
-                            placeholder="••••••••"
+        <>
+            <Modal
+                opened={modalState.open}
+                onClose={handleClose}
+                title={modalState.editingConnection ? 'Edit Connection' : 'Add New Connection'}
+                size="md"
+            >
+                <form onSubmit={form.onSubmit(handleSubmit)}>
+                    <Stack gap="md">
+                        <TextInput
+                            label="Connection Name"
+                            placeholder="Production Server"
                             required
-                            {...form.getInputProps('password')}
+                            {...form.getInputProps('name')}
                         />
-                    )}
 
-                    {form.values.authType === 'key' && (
-                        <>
-                            <div>
-                                <Text size="sm" fw={500} mb="xs">
-                                    Private Key
-                                </Text>
-                                <Group gap="xs" mb="xs">
-                                    <FileInput
-                                        placeholder="Upload key file"
-                                        accept=".pem,.key,.ppk"
-                                        leftSection={<IconUpload size={14} />}
-                                        style={{ flex: 1 }}
-                                        onChange={async (file) => {
-                                            if (file) {
-                                                const content = await file.text();
-                                                form.setFieldValue('privateKey', content);
-                                            }
-                                        }}
-                                    />
-                                    <Button
-                                        variant="light"
-                                        size="xs"
-                                        leftSection={<IconKey size={14} />}
-                                        onClick={() => form.setFieldValue('privateKey', '')}
-                                    >
-                                        Clear
-                                    </Button>
-                                </Group>
-                                <Textarea
-                                    placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
-                                    minRows={4}
-                                    maxRows={8}
-                                    {...form.getInputProps('privateKey')}
-                                    autosize
-                                />
-                            </div>
+                        <TextInput
+                            label="Host"
+                            placeholder="server.example.com"
+                            required
+                            {...form.getInputProps('host')}
+                        />
+
+                        <NumberInput
+                            label="Port"
+                            placeholder="22"
+                            min={1}
+                            max={65535}
+                            required
+                            {...form.getInputProps('port')}
+                        />
+
+                        <TextInput
+                            label="Username"
+                            placeholder="admin"
+                            required
+                            {...form.getInputProps('username')}
+                        />
+
+                        <Radio.Group label="Authentication Type" {...form.getInputProps('authType')}>
+                            <Radio value="password" label="Password" mt="md" />
+                            <Radio value="key" label="SSH Key" mt="md" />
+                        </Radio.Group>
+
+                        {form.values.authType === 'password' && (
                             <PasswordInput
-                                label="Passphrase (optional)"
-                                placeholder="Enter passphrase if your key is encrypted"
-                                {...form.getInputProps('passphrase')}
+                                label="Password"
+                                placeholder="••••••••"
+                                required
+                                {...form.getInputProps('password')}
                             />
-                        </>
-                    )}
+                        )}
 
-                    {testResult && (
-                        <Alert
-                            icon={testResult.success ? <IconPlugConnected size={16} /> : <IconPlugConnectedX size={16} />}
-                            color={testResult.success ? 'green' : 'red'}
-                            variant="light"
-                        >
-                            {testResult.message}
-                        </Alert>
-                    )}
+                        {form.values.authType === 'key' && (
+                            <>
+                                <div>
+                                    <Text size="sm" fw={500} mb="xs">
+                                        Private Key
+                                    </Text>
+                                    <Group gap="xs" mb="xs">
+                                        <FileInput
+                                            placeholder="Upload key file"
+                                            accept=".pem,.key,.ppk"
+                                            leftSection={<IconUpload size={14} />}
+                                            style={{ flex: 1 }}
+                                            onChange={async (file) => {
+                                                if (file) {
+                                                    const content = await file.text();
+                                                    form.setFieldValue('privateKey', content);
+                                                }
+                                            }}
+                                        />
+                                        <Button
+                                            variant="light"
+                                            size="xs"
+                                            leftSection={<IconKey size={14} />}
+                                            onClick={() => form.setFieldValue('privateKey', '')}
+                                        >
+                                            Clear
+                                        </Button>
+                                    </Group>
+                                    <Textarea
+                                        placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+                                        minRows={4}
+                                        maxRows={8}
+                                        {...form.getInputProps('privateKey')}
+                                        autosize
+                                    />
+                                </div>
+                                <PasswordInput
+                                    label="Passphrase (optional)"
+                                    placeholder="Enter passphrase if your key is encrypted"
+                                    {...form.getInputProps('passphrase')}
+                                />
+                            </>
+                        )}
 
-                    <Group justify="apart" mt="sm">
-                        <Button
-                            variant="light"
-                            color="blue"
-                            leftSection={<IconPlugConnected size={16} />}
-                            onClick={() => handleTestFormConnection(form.values)}
-                            loading={isTestingConnection}
-                            disabled={
-                                !form.isValid() ||
-                                form.values.name === '' ||
-                                form.values.host === '' ||
-                                form.values.username === '' ||
-                                (form.values.authType === 'password' && form.values.password === '') ||
-                                (form.values.authType === 'key' && form.values.privateKey === '')
-                            }
-                            w="100%"
-                        >
-                            Test Connection
-                        </Button>
-
-                        <Group w="100%" mt={'lg'}>
-                            <Button variant="subtle" onClick={handleClose}>
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                loading={createConnection.isPending || updateConnection.isPending}
-                                disabled={!form.isValid()}
+                        {testResult && (
+                            <Alert
+                                icon={testResult.success ? <IconPlugConnected size={16} /> : <IconPlugConnectedX size={16} />}
+                                color={testResult.success ? 'green' : 'red'}
+                                variant="light"
                             >
-                                {modalState.editingConnection ? 'Update' : 'Add'} Connection
+                                {testResult.message}
+                            </Alert>
+                        )}
+
+                        <Group justify="apart" mt="sm">
+                            <Button
+                                variant="light"
+                                color="blue"
+                                leftSection={<IconPlugConnected size={16} />}
+                                onClick={() => handleTestFormConnection(form.values)}
+                                loading={isTestingConnection}
+                                disabled={
+                                    !form.isValid() ||
+                                    form.values.name === '' ||
+                                    form.values.host === '' ||
+                                    form.values.username === '' ||
+                                    (form.values.authType === 'password' && form.values.password === '') ||
+                                    (form.values.authType === 'key' && form.values.privateKey === '')
+                                }
+                                w="100%"
+                            >
+                                Test Connection
                             </Button>
+
+                            <Group w="100%" mt={'lg'}>
+                                <Button variant="subtle" onClick={handleClose}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    loading={createConnection.isPending || updateConnection.isPending}
+                                    disabled={!form.isValid()}
+                                >
+                                    {modalState.editingConnection ? 'Update' : 'Add'} Connection
+                                </Button>
+                            </Group>
                         </Group>
-                    </Group>
-                </Stack>
-            </form>
-        </Modal>
+                    </Stack>
+                </form>
+            </Modal>
+
+            <MasterKeySetup
+                opened={showMasterKeySetup}
+                onClose={() => setShowMasterKeySetup(false)}
+                onSetup={handleMasterKeySetup}
+            />
+        </>
     );
 };

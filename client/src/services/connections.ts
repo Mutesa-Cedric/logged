@@ -6,6 +6,7 @@ import { useAtom } from 'jotai';
 import { useLocation } from 'react-router-dom';
 import { api, tokenManager } from '../lib/api';
 import { isGuestModeAtom, connectionStatusAtom, activeConnectionIdAtom } from '../store/atoms';
+import type { EncryptedData } from '../lib/encryption';
 
 export interface ServerConnection {
     id: string;
@@ -30,18 +31,22 @@ export interface CreateConnectionData {
     host: string;
     port: number;
     username: string;
-    encryptedPassword?: {
-        encryptedData: string;
-        salt: string;
-    };
-    encryptedPrivateKey?: {
-        encryptedData: string;
-        salt: string;
-    };
-    encryptedPassphrase?: {
-        encryptedData: string;
-        salt: string;
-    };
+    encryptedPassword?: EncryptedData | string;
+    encryptedPrivateKey?: EncryptedData | string;
+    encryptedPassphrase?: EncryptedData | string;
+    tempPassword?: string;
+    tempPrivateKey?: string;
+    tempPassphrase?: string;
+}
+
+export interface CreateConnectionData {
+    name: string;
+    host: string;
+    port: number;
+    username: string;
+    encryptedPassword?: EncryptedData | string;
+    encryptedPrivateKey?: EncryptedData | string;
+    encryptedPassphrase?: EncryptedData | string;
     tempPassword?: string;
     tempPrivateKey?: string;
     tempPassphrase?: string;
@@ -301,14 +306,14 @@ export const useCreateConnection = () => {
         mutationFn: (connectionData: CreateConnectionData) => {
             const isGuestPath = location.pathname.startsWith('/guest');
             const actualGuestMode = isGuestMode || isGuestPath;
-            
+
             return connectionAPI.createConnection(connectionData, actualGuestMode);
         },
         onSuccess: (newConnection) => {
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
-            
+
             notifications.show({
                 title: 'Success',
                 message: `Connection "${newConnection.name}" created successfully`,
@@ -337,7 +342,7 @@ export const useUpdateConnection = () => {
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
             queryClient.invalidateQueries({ queryKey: connectionKeys.detail(updatedConnection.id) });
-            
+
             notifications.show({
                 title: 'Success',
                 message: `Connection "${updatedConnection.name}" updated successfully`,
@@ -365,7 +370,7 @@ export const useDeleteConnection = () => {
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
             queryClient.removeQueries({ queryKey: connectionKeys.detail(connectionId) });
-            
+
             notifications.show({
                 title: 'Success',
                 message: 'Connection deleted successfully',
@@ -418,12 +423,12 @@ export const useConnectToServer = () => {
         onSuccess: (_, connectionId) => {
             setConnectionStatus('connected');
             setActiveConnectionId(connectionId);
-            
+
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
             queryClient.invalidateQueries({ queryKey: connectionKeys.detail(connectionId) });
-            
+
             notifications.show({
                 title: 'Connected',
                 message: 'Successfully connected to server',
@@ -432,7 +437,7 @@ export const useConnectToServer = () => {
         },
         onError: (error: AxiosError<{ error: string }>) => {
             setConnectionStatus('disconnected');
-            
+
             notifications.show({
                 title: 'Connection Failed',
                 message: error.response?.data?.error || 'Failed to connect to server',
@@ -452,12 +457,12 @@ export const useDisconnectFromServer = () => {
         onSuccess: (_, connectionId) => {
             setConnectionStatus('disconnected');
             setActiveConnectionId(null);
-            
+
             queryClient.invalidateQueries({ queryKey: connectionKeys.lists() });
             queryClient.invalidateQueries({ queryKey: connectionKeys.guest });
             queryClient.invalidateQueries({ queryKey: connectionKeys.all });
             queryClient.invalidateQueries({ queryKey: connectionKeys.detail(connectionId) });
-            
+
             notifications.show({
                 title: 'Disconnected',
                 message: 'Disconnected from server',

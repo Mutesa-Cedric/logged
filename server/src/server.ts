@@ -6,6 +6,7 @@ import cookieParser = require('cookie-parser');
 import { createServer } from 'http';
 import aiRoutes from './modules/api/aiRoutes';
 import serverRoutes from './modules/api/serverRoutes';
+import encryptionRoutes from './modules/api/encryptionRoutes';
 import { SocketService } from './modules/websocket/socketService';
 import { connectDatabase } from './utils/database';
 
@@ -67,6 +68,7 @@ app.use((req, res, next) => {
 
 app.use('/api/servers', serverRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/encryption', encryptionRoutes);
 
 app.get('/', (req, res) => {
   res.send('Logged - Log Viewer Server');

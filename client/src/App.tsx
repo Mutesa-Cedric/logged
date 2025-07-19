@@ -8,16 +8,18 @@ import { Dashboard } from './components/Dashboard';
 import { AppLayout } from './components/layout/AppLayout';
 import { AppLoadingScreen } from './components/LoadingScreen';
 import { tokenManager } from './lib/api';
-import { isGuestModeAtom } from './store/atoms';
+import { isGuestModeAtom, encryptionEnabledAtom } from './store/atoms';
 import { withErrorBoundary } from './components/ErrorBoundary';
 import AuthModal from './components/AuthModal';
 import { AddConnectionModal } from './components/AddConnectionModal';
+import { encryptionManager } from './lib/encryption';
 
 function App() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { getToken } = useAuth();
   const location = useLocation();
   const [isGuestMode, setIsGuestMode] = useAtom(isGuestModeAtom);
+  const [, setEncryptionEnabled] = useAtom(encryptionEnabledAtom);
 
   useEffect(() => {
     const isGuestPath = location.pathname.startsWith('/guest');
@@ -34,6 +36,12 @@ function App() {
         try {
           const token = await getToken();
           tokenManager.setToken(token);
+          
+          // Auto-load master key for authenticated users
+          if (user?.id) {
+            const hasKey = await encryptionManager.initializeFromDatabase(user.id);
+            setEncryptionEnabled(hasKey);
+          }
         } catch (error) {
           console.error('Failed to initialize auth token:', error);
         }
@@ -41,11 +49,12 @@ function App() {
         const token = (isGuestMode || isGuestPath) ? 'guest-token' : null;
 
         tokenManager.setToken(token);
+        setEncryptionEnabled(false);
       }
     };
 
     initializeAuth();
-  }, [isLoaded, isSignedIn, getToken, user, isGuestMode, location.pathname]);
+  }, [isLoaded, isSignedIn, getToken, user, isGuestMode, location.pathname, setEncryptionEnabled]);
 
   if (!isLoaded && !isGuestMode && location.pathname !== '/') {
     return (

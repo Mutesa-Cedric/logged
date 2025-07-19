@@ -18,6 +18,10 @@ model User {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
+    encryptedMasterKey String?
+    masterKeySalt      String?
+    masterKeyIv        String?
+
     // Relationships
     connections ServerConnection[]
 

@@ -74,7 +74,14 @@ const StatsCard = ({ title, value, icon: Icon, color, description }: StatsCardPr
 };
 
 interface ConnectionCardProps {
-    connection: any;
+    connection: {
+        id: string;
+        name: string;
+        host: string;
+        port: number;
+        username: string;
+        lastUsed?: string;
+    };
     onEdit?: () => void;
     onConnect?: () => void;
 }

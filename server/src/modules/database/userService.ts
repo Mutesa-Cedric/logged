@@ -327,6 +327,82 @@ export class UserService {
     }
 
     /**
+     * Save encrypted master key for user
+     */
+    async saveMasterKey(clerkId: string, encryptedData: {
+        encryptedData: string;
+        salt: string;
+        iv: string;
+    }): Promise<void> {
+        try {
+            const user = await this.ensureUserExists(clerkId);
+
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    encryptedMasterKey: encryptedData.encryptedData,
+                    masterKeySalt: encryptedData.salt,
+                    masterKeyIv: encryptedData.iv,
+                    updatedAt: new Date()
+                }
+            });
+        } catch (error) {
+            console.error('Error saving master key:', error);
+            throw new Error('Failed to save master key');
+        }
+    }
+
+    /**
+     * Get encrypted master key for user
+     */
+    async getMasterKey(clerkId: string): Promise<{
+        encryptedData: string;
+        salt: string;
+        iv: string;
+    } | null> {
+        try {
+            const user = await this.getUserByClerkId(clerkId);
+            
+            if (!user || !user.encryptedMasterKey || !user.masterKeySalt || !user.masterKeyIv) {
+                return null;
+            }
+
+            return {
+                encryptedData: user.encryptedMasterKey,
+                salt: user.masterKeySalt,
+                iv: user.masterKeyIv
+            };
+        } catch (error) {
+            console.error('Error getting master key:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Delete encrypted master key for user
+     */
+    async deleteMasterKey(clerkId: string): Promise<void> {
+        try {
+            const user = await this.getUserByClerkId(clerkId);
+            
+            if (user) {
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: {
+                        encryptedMasterKey: null,
+                        masterKeySalt: null,
+                        masterKeyIv: null,
+                        updatedAt: new Date()
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Error deleting master key:', error);
+            throw new Error('Failed to delete master key');
+        }
+    }
+
+    /**
      * Delete user and all their data
      */
     async deleteUser(clerkId: string): Promise<boolean> {
