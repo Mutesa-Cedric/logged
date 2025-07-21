@@ -84,12 +84,12 @@ api.interceptors.response.use(
                 });
                 break;
             case 404:
-                notifications.show({
-                    title: 'Not Found',
-                    message: 'The requested resource was not found',
-                    color: 'orange',
-                    autoClose: 4000,
-                });
+                // notifications.show({
+                //     title: 'Not Found',
+                //     message: 'The requested resource was not found',
+                //     color: 'orange',
+                //     autoClose: 4000,
+                // });
                 break;
             case 408:
                 notifications.show({
