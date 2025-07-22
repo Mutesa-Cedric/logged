@@ -37,36 +37,10 @@ export class SSHService extends EventEmitter {
                 username: connection.username,
                 readyTimeout: 20000, // 20 second timeout for connection
                 keepaliveInterval: 0, // Disable keepalive for test connections
-                algorithms: {
-                    kex: [
-                        'diffie-hellman-group-exchange-sha256',
-                        'diffie-hellman-group14-sha256',
-                        'diffie-hellman-group16-sha512',
-                        'diffie-hellman-group18-sha512',
-                        'ecdh-sha2-nistp256',
-                        'ecdh-sha2-nistp384',
-                        'ecdh-sha2-nistp521'
-                    ],
-                    cipher: [
-                        'aes128-ctr',
-                        'aes192-ctr', 
-                        'aes256-ctr',
-                        'aes128-gcm',
-                        'aes256-gcm'
-                    ],
-                    serverHostKey: [
-                        'ssh-rsa',
-                        'ecdsa-sha2-nistp256',
-                        'ecdsa-sha2-nistp384',
-                        'ecdsa-sha2-nistp521',
-                        'ssh-ed25519'
-                    ],
-                    hmac: [
-                        'hmac-sha2-256',
-                        'hmac-sha2-512',
-                        'hmac-sha1'
-                    ]
-                }
+                tryKeyboard: true, // Enable keyboard-interactive authentication
+                debug: (msg) => console.log(`SSH Debug: ${msg}`), // Enable SSH debug
+                // More permissive authentication methods
+                authHandler: ['none', 'password', 'publickey', 'keyboard-interactive']
             };
 
             if (connection.password) {
@@ -121,7 +95,6 @@ export class SSHService extends EventEmitter {
                 ? logCommand.value
                 : `tail ${logCommand.follow ? '-f' : ''} ${logCommand.value}`;
 
-            console.log(`Executing command: ${command} (streaming: ${isStreaming})`);
 
             client.exec(command, (err, stream) => {
                 if (err) {
@@ -133,13 +106,13 @@ export class SSHService extends EventEmitter {
 
                 stream.on('close', (code: number, signal: string) => {
                     streamEnded = true;
-                    console.log(`Command closed with code: ${code}, signal: ${signal}`);
+
 
                     if (code !== 0 && code !== null) {
-                        const errorMessage = code === 1 ? 
+                        const errorMessage = code === 1 ?
                             'Command failed (exit code 1) - this may be normal for some commands' :
                             `Command exited with code ${code}`;
-                        
+
                         this.emit('logData', {
                             connectionId,
                             data: `COMMAND INFO: ${errorMessage}\n`,
@@ -150,8 +123,6 @@ export class SSHService extends EventEmitter {
                     }
 
                     if (!isStreaming) {
-                        console.log(`Non-streaming command completed. Data received: ${dataReceived}, Output length: ${output.length}, Output: "${output.trim()}"`);
-                        
                         if (!dataReceived && output.trim().length === 0) {
                             let errorMsg = 'No data received from command.';
                             if (code === 1) {
@@ -163,10 +134,8 @@ export class SSHService extends EventEmitter {
                             } else if (code !== 0 && code !== null) {
                                 errorMsg += ` Command exited with code ${code}.`;
                             }
-                            console.log(`Rejecting with error: ${errorMsg}`);
                             reject(new Error(errorMsg));
                         } else {
-                            console.log(`Resolving with output: "${output.trim()}"`);
                             resolve(output);
                         }
                     } else {
@@ -179,10 +148,7 @@ export class SSHService extends EventEmitter {
                     output += content;
                     dataReceived = true;
 
-                    console.log(`SSH data received (${content.length} chars): "${content.trim()}"`);
-
                     if (onData && !streamEnded) {
-                        console.log(`Calling onData callback with: "${content.trim()}"`);
                         onData(content);
                     }
 
@@ -195,7 +161,7 @@ export class SSHService extends EventEmitter {
 
                 stream.stderr.on('data', (data: Buffer) => {
                     const error = data.toString();
-                    console.log(`Command stderr: ${error}`);
+
 
                     this.emit('logData', {
                         connectionId,
@@ -213,14 +179,14 @@ export class SSHService extends EventEmitter {
                     }
 
                     const lowerError = error.toLowerCase();
-                    const isCriticalError = lowerError.includes('permission denied') || 
-                                          lowerError.includes('connection refused') ||
-                                          lowerError.includes('no such file') ||
-                                          lowerError.includes('command not found') ||
-                                          lowerError.includes('authentication failed') ||
-                                          lowerError.includes('no such container') ||
-                                          lowerError.includes('error response from daemon');
-                    
+                    const isCriticalError = lowerError.includes('permission denied') ||
+                        lowerError.includes('connection refused') ||
+                        lowerError.includes('no such file') ||
+                        lowerError.includes('command not found') ||
+                        lowerError.includes('authentication failed') ||
+                        lowerError.includes('no such container') ||
+                        lowerError.includes('error response from daemon');
+
                     if (isCriticalError) {
                         let contextualError = error;
                         if (lowerError.includes('no such container')) {
@@ -228,7 +194,7 @@ export class SSHService extends EventEmitter {
                         } else if (lowerError.includes('error response from daemon')) {
                             contextualError += ' (Docker daemon error - check container name and status)';
                         }
-                        
+
                         this.emit('logError', {
                             connectionId,
                             error: contextualError,
@@ -240,7 +206,7 @@ export class SSHService extends EventEmitter {
                 const timeoutDuration = isStreaming ? 30000 : 300000; // 30s for streaming, 5min for downloads
                 const timeoutId = setTimeout(() => {
                     if (!streamEnded) {
-                        console.log(`Command timeout (${timeoutDuration / 1000}s), ending stream`);
+
                         stream.end();
                         if (!isStreaming && !dataReceived) {
                             reject(new Error(`Command timed out after ${timeoutDuration / 1000} seconds with no data received`));
@@ -287,14 +253,6 @@ export class SSHService extends EventEmitter {
         const testId = `test-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const testConnection = { ...connection, id: testId };
 
-        console.log('🔍 Starting connection test:', {
-            host: connection.host,
-            username: connection.username,
-            port: connection.port,
-            authType: connection.password ? 'password' : connection.privateKey ? 'privateKey' : 'none',
-            testId
-        });
-
         try {
             const timeoutPromise = new Promise((_, reject) => {
                 setTimeout(() => {
@@ -303,19 +261,18 @@ export class SSHService extends EventEmitter {
             });
 
             const connectPromise = this.connectToServer(testConnection);
-            
+
             await Promise.race([connectPromise, timeoutPromise]);
-            
-            console.log('✅ Connection test successful for:', connection.host);
+
             this.disconnect(testId);
-            
+
             return { success: true };
         } catch (error: any) {
             console.error('❌ Connection test failed for:', connection.host, 'Error:', error.message);
-            
+
             // Clean up any potential connection
             this.disconnect(testId);
-            
+
             // Parse and categorize the error
             let errorMessage = error.message || 'Unknown connection error';
             let errorCategory = 'unknown';

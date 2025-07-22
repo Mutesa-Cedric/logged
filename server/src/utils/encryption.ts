@@ -3,12 +3,14 @@ import CryptoJS from 'crypto-js';
 export interface EncryptionResult {
     encryptedData: string;
     salt: string;
+    iv?: string;
 }
 
 export interface DecryptionParams {
     encryptedData: string;
     salt: string;
     masterKey: string;
+    iv?: string;
 }
 
 /**
@@ -18,7 +20,7 @@ export interface DecryptionParams {
 export function generateMasterKey(password: string, salt: string): string {
     return CryptoJS.PBKDF2(password, salt, {
         keySize: 256 / 32,
-        iterations: 100000
+        iterations: 10000
     }).toString();
 }
 
@@ -30,7 +32,7 @@ export function encryptData(data: string, masterKey: string): EncryptionResult {
     const salt = CryptoJS.lib.WordArray.random(128 / 8).toString();
     const key = CryptoJS.PBKDF2(masterKey, salt, {
         keySize: 256 / 32,
-        iterations: 1000
+        iterations: 10000
     });
 
     const encrypted = CryptoJS.AES.encrypt(data, key.toString()).toString();
@@ -46,15 +48,40 @@ export function encryptData(data: string, masterKey: string): EncryptionResult {
  * This should be done on the client side after receiving from server
  */
 export function decryptData(params: DecryptionParams): string {
-    const { encryptedData, salt, masterKey } = params;
+    const { encryptedData, salt, masterKey, iv } = params;
+
+   
 
     const key = CryptoJS.PBKDF2(masterKey, salt, {
         keySize: 256 / 32,
-        iterations: 1000
+        iterations: 10000
     });
 
-    const decrypted = CryptoJS.AES.decrypt(encryptedData, key.toString());
-    return decrypted.toString(CryptoJS.enc.Utf8);
+   
+
+    let decrypted;
+    if (iv && iv.length > 0) {
+        // Client-side style with explicit IV
+       
+        decrypted = CryptoJS.AES.decrypt(encryptedData, key.toString(), {
+            iv: CryptoJS.enc.Hex.parse(iv),
+            mode: CryptoJS.mode.CBC,
+            padding: CryptoJS.pad.Pkcs7
+        });
+    } else {
+        // Fallback for old format without IV
+       
+        decrypted = CryptoJS.AES.decrypt(encryptedData, key.toString());
+    }
+    
+    const result = decrypted.toString(CryptoJS.enc.Utf8);
+   
+    
+    if (!result || result.length === 0) {
+        throw new Error('Decryption failed: empty result. Check master key and encryption format.');
+    }
+    
+    return result;
 }
 
 /**

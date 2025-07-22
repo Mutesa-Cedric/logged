@@ -144,12 +144,6 @@ router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
     try {
         const connection: SSHConnection = req.body;
 
-        console.log('🔗 Direct connection request:', {
-            host: connection.host,
-            username: connection.username,
-            port: connection.port,
-            isGuest: req.isGuest
-        });
 
         if (!connection.host || !connection.username || !connection.port) {
             return res.status(400).json({
@@ -191,13 +185,6 @@ router.post('/connect-direct', async (req: AuthenticatedRequest, res) => {
 router.post('/test-connection', async (req: AuthenticatedRequest, res) => {
     try {
         const connection: SSHConnection = req.body;
-
-        console.log('🔍 Testing connection:', {
-            host: connection.host,
-            username: connection.username,
-            port: connection.port,
-            isGuest: req.isGuest
-        });
 
         if (!connection.host || !connection.username || !connection.port) {
             return res.status(400).json({
@@ -247,20 +234,27 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
         if (savedConnection.encryptedPassword) {
             try {
                 if (savedConnection.encryptedPassword.includes(':')) {
-                    const [encryptedData, salt] = savedConnection.encryptedPassword.split(':');
+                    const parts = savedConnection.encryptedPassword.split(':');
+                    const [encryptedData, salt, iv] = parts;
                     if (salt === 'demo-salt') {
                         password = Buffer.from(encryptedData, 'base64').toString();
-                        console.log('⚠️ Using legacy demo decryption - consider migrating to proper AES');
                     } else {
-                        const masterKey = 'default-master-key'; // TODO: Get from user session
+                        // Get the user's actual master key
+                        const masterKey = await userService.getDecryptedMasterKey(clerkId);
+                        if (!masterKey) {
+                            return res.status(500).json({
+                                success: false,
+                                error: 'Master key not found. Please set up encryption in your account.'
+                            });
+                        }
 
                         const { decryptData } = await import('../../utils/encryption');
                         password = decryptData({
                             encryptedData,
                             salt,
-                            masterKey
+                            masterKey,
+                            iv: iv || undefined
                         });
-                        console.log('✅ Using proper AES decryption');
                     }
                 } else {
                     console.warn('Invalid encrypted password format - missing salt');
@@ -278,16 +272,26 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
         if (savedConnection.encryptedPrivateKey) {
             try {
                 if (savedConnection.encryptedPrivateKey.includes(':')) {
-                    const [encryptedData, salt] = savedConnection.encryptedPrivateKey.split(':');
+                    const parts = savedConnection.encryptedPrivateKey.split(':');
+                    const [encryptedData, salt, iv] = parts;
                     if (salt === 'demo-salt') {
                         privateKey = Buffer.from(encryptedData, 'base64').toString();
                     } else {
-                        const masterKey = 'default-master-key'; // TODO: Get from user session
+                        // Get the user's actual master key
+                        const masterKey = await userService.getDecryptedMasterKey(clerkId);
+                        if (!masterKey) {
+                            console.error('Master key not found for private key decryption');
+                            return res.status(500).json({
+                                success: false,
+                                error: 'Master key not found. Please set up encryption in your account.'
+                            });
+                        }
                         const { decryptData } = await import('../../utils/encryption');
                         privateKey = decryptData({
                             encryptedData,
                             salt,
-                            masterKey
+                            masterKey,
+                            iv: iv || undefined
                         });
                     }
                 }
@@ -300,16 +304,26 @@ router.post('/connect/:connectionId', requireAuth, async (req: AuthenticatedRequ
         if (savedConnection.encryptedPassphrase) {
             try {
                 if (savedConnection.encryptedPassphrase.includes(':')) {
-                    const [encryptedData, salt] = savedConnection.encryptedPassphrase.split(':');
+                    const parts = savedConnection.encryptedPassphrase.split(':');
+                    const [encryptedData, salt, iv] = parts;
                     if (salt === 'demo-salt') {
                         passphrase = Buffer.from(encryptedData, 'base64').toString();
                     } else {
-                        const masterKey = 'default-master-key'; // TODO: Get from user session
+                        // Get the user's actual master key
+                        const masterKey = await userService.getDecryptedMasterKey(clerkId);
+                        if (!masterKey) {
+                            console.error('Master key not found for passphrase decryption');
+                            return res.status(500).json({
+                                success: false,
+                                error: 'Master key not found. Please set up encryption in your account.'
+                            });
+                        }
                         const { decryptData } = await import('../../utils/encryption');
                         passphrase = decryptData({
                             encryptedData,
                             salt,
-                            masterKey
+                            masterKey,
+                            iv: iv || undefined
                         });
                     }
                 }
@@ -494,7 +508,6 @@ router.post('/download-logs', async (req, res) => {
         req.setTimeout(300000);
         res.setTimeout(300000);
 
-        console.log(`Starting log download for connection ${connectionId} with command: ${command.value}`);
 
         const downloadCommand = { ...command, follow: false };
 
@@ -526,7 +539,6 @@ router.post('/download-logs', async (req, res) => {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const filename = `logs-${connectionId}-${timestamp}`;
 
-        console.log(`Log data retrieved: ${result.length} characters, format: ${format}`);
 
         res.setHeader('Cache-Control', 'no-cache');
         res.setHeader('Pragma', 'no-cache');
@@ -568,7 +580,6 @@ router.post('/download-logs', async (req, res) => {
             res.send(content);
         }
 
-        console.log(`Log download completed successfully: ${filename}.${format}`);
 
     } catch (error) {
         console.error('Download logs error:', error);

@@ -1,6 +1,7 @@
 import { prisma } from '../../utils/database';
 import { validateEncryptedData } from '../../utils/encryption';
 import type { User, ServerConnection } from '@prisma/client';
+import CryptoJS from 'crypto-js';
 
 export interface CreateUserData {
     clerkId: string;
@@ -19,14 +20,17 @@ export interface CreateConnectionData {
     encryptedPassword?: {
         encryptedData: string;
         salt: string;
+        iv?: string;
     };
     encryptedPrivateKey?: {
         encryptedData: string;
         salt: string;
+        iv?: string;
     };
     encryptedPassphrase?: {
         encryptedData: string;
         salt: string;
+        iv?: string;
     };
 }
 
@@ -118,8 +122,7 @@ export class UserService {
                         username: null,
                         imageUrl: null
                     }
-                });
-                console.log(`Auto-created user for clerkId: ${clerkId}`);
+                }); 
             }
 
             return user;
@@ -176,13 +179,13 @@ export class UserService {
                     port: connectionData.port,
                     username: connectionData.username,
                     encryptedPassword: connectionData.encryptedPassword
-                        ? `${connectionData.encryptedPassword.encryptedData}:${connectionData.encryptedPassword.salt}`
+                        ? `${connectionData.encryptedPassword.encryptedData}:${connectionData.encryptedPassword.salt}:${connectionData.encryptedPassword.iv || ''}`
                         : null,
                     encryptedPrivateKey: connectionData.encryptedPrivateKey
-                        ? `${connectionData.encryptedPrivateKey.encryptedData}:${connectionData.encryptedPrivateKey.salt}`
+                        ? `${connectionData.encryptedPrivateKey.encryptedData}:${connectionData.encryptedPrivateKey.salt}:${connectionData.encryptedPrivateKey.iv || ''}`
                         : null,
                     encryptedPassphrase: connectionData.encryptedPassphrase
-                        ? `${connectionData.encryptedPassphrase.encryptedData}:${connectionData.encryptedPassphrase.salt}`
+                        ? `${connectionData.encryptedPassphrase.encryptedData}:${connectionData.encryptedPassphrase.salt}:${connectionData.encryptedPassphrase.iv || ''}`
                         : null,
                     userId: user.id
                 }
@@ -260,15 +263,15 @@ export class UserService {
             if (updateData.username !== undefined) updatePayload.username = updateData.username;
 
             if (updateData.encryptedPassword) {
-                updatePayload.encryptedPassword = `${updateData.encryptedPassword.encryptedData}:${updateData.encryptedPassword.salt}`;
+                updatePayload.encryptedPassword = `${updateData.encryptedPassword.encryptedData}:${updateData.encryptedPassword.salt}:${updateData.encryptedPassword.iv || ''}`;
             }
 
             if (updateData.encryptedPrivateKey) {
-                updatePayload.encryptedPrivateKey = `${updateData.encryptedPrivateKey.encryptedData}:${updateData.encryptedPrivateKey.salt}`;
+                updatePayload.encryptedPrivateKey = `${updateData.encryptedPrivateKey.encryptedData}:${updateData.encryptedPrivateKey.salt}:${updateData.encryptedPrivateKey.iv || ''}`;
             }
 
             if (updateData.encryptedPassphrase) {
-                updatePayload.encryptedPassphrase = `${updateData.encryptedPassphrase.encryptedData}:${updateData.encryptedPassphrase.salt}`;
+                updatePayload.encryptedPassphrase = `${updateData.encryptedPassphrase.encryptedData}:${updateData.encryptedPassphrase.salt}:${updateData.encryptedPassphrase.iv || ''}`;
             }
 
             return await prisma.serverConnection.update({
@@ -374,6 +377,43 @@ export class UserService {
             };
         } catch (error) {
             console.error('Error getting master key:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Decrypt and retrieve user's plaintext master key
+     */
+    async getDecryptedMasterKey(clerkId: string): Promise<string | null> {
+        try {
+            const encryptedMasterKeyData = await this.getMasterKey(clerkId);
+            
+            if (!encryptedMasterKeyData) {
+                return null;
+            }
+            
+                    
+            // Derive the decryption key using clerkId (same method as client)
+            const userKey = CryptoJS.PBKDF2(clerkId, encryptedMasterKeyData.salt, {
+                keySize: 256 / 32,
+                iterations: 10000
+            }).toString();
+            
+            // Decrypt the master key using the same method as client
+            const decryptedMasterKey = CryptoJS.AES.decrypt(encryptedMasterKeyData.encryptedData, userKey, {
+                iv: CryptoJS.enc.Hex.parse(encryptedMasterKeyData.iv),
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7
+            }).toString(CryptoJS.enc.Utf8);
+            
+            if (!decryptedMasterKey || decryptedMasterKey.length === 0) {
+                console.error(`Failed to decrypt master key for user ${clerkId}`);
+                return null;
+            }
+            
+            return decryptedMasterKey;
+        } catch (error) {
+            console.error(`Error decrypting master key for user ${clerkId}:`, error);
             return null;
         }
     }

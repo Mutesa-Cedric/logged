@@ -93,7 +93,6 @@ export class SocketService {
                         );
                     } else {
                         // For one-time log retrieval - handle both callback and final result
-                        console.log(`Executing non-streaming command: ${data.command.value}`);
                         let callbackDataReceived = false;
                         
                         const logData = await sshService.executeLogCommand(
@@ -101,7 +100,6 @@ export class SocketService {
                             data.command,
                             (partialData) => {
                                 if (session.active) {
-                                    console.log(`Sending callback data: ${partialData.trim()}`);
                                     callbackDataReceived = true;
                                     socket.emit('log-data', {
                                         sessionId,
@@ -114,7 +112,6 @@ export class SocketService {
 
                         // If we have additional data from the resolved promise and didn't get it via callback, send it
                         if (typeof logData === 'string' && logData.trim() && session.active && !callbackDataReceived) {
-                            console.log(`Sending resolved data: ${logData.trim()}`);
                             // Split into lines and send each as separate log entry
                             const lines = logData.split('\n').filter(line => line.trim());
                             for (const line of lines) {
@@ -131,7 +128,6 @@ export class SocketService {
                         // small delay to ensure data is sent before closing session
                         setTimeout(() => {
                             if (session.active) {
-                                console.log(`Ending session: ${sessionId}`);
                                 socket.emit('log-stream-ended', { sessionId });
                                 session.active = false;
                                 this.activeSessions.delete(sessionId);
@@ -197,7 +193,6 @@ export class SocketService {
 
             // Handle client disconnect
             socket.on('disconnect', () => {
-                console.log(`Client disconnected: ${socket.id}`);
                 // Stop all sessions for this socket
                 for (const [sessionId, session] of this.activeSessions) {
                     if (session.socketId === socket.id) {

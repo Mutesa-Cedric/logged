@@ -9,8 +9,6 @@ router.post('/chat/stream', isAuthenticated, async (req: AuthenticatedRequest, r
     try {
         const { logs, messages } = req.body;
 
-        console.log('AI Chat request body:', { logs: logs?.length, messages: messages?.length });
-
         if (!logs || !Array.isArray(logs) || logs.length === 0) {
             return res.status(400).json({
                 success: false,
@@ -21,8 +19,6 @@ router.post('/chat/stream', isAuthenticated, async (req: AuthenticatedRequest, r
         // Get the latest user message from the messages array
         const userMessages = messages?.filter((msg: any) => msg.role === 'user') || [];
         const latestMessage = userMessages[userMessages.length - 1];
-
-        console.log('Latest message:', latestMessage);
 
         if (!latestMessage || !latestMessage.content || typeof latestMessage.content !== 'string' || latestMessage.content.trim().length === 0) {
             return res.status(400).json({
