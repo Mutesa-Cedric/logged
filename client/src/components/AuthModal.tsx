@@ -1,8 +1,9 @@
-import { Modal, useMantineTheme, Box, CloseButton } from '@mantine/core';
+import { Modal, useMantineTheme, Box, CloseButton, Stack, Skeleton, Text, ThemeIcon } from '@mantine/core';
+import { IconLogin, IconUserPlus } from '@tabler/icons-react';
 import { SignIn, SignUp } from '@clerk/clerk-react';
 import { useAtom } from 'jotai';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { authModalAtom } from '../store/atoms';
 import { useTheme, themeUtils } from '../lib/theme';
 
@@ -12,9 +13,11 @@ const AuthModal = () => {
     const [modal, setModal] = useAtom(authModalAtom);
     const navigate = useNavigate();
     const location = useLocation();
+    const [isLoading, setIsLoading] = useState(false);
 
     const close = () => {
         setModal({ ...modal, open: false });
+        setIsLoading(false);
         if (location.pathname === '/login' || location.pathname === '/signup') {
             navigate('/');
         }
@@ -27,6 +30,19 @@ const AuthModal = () => {
     const switchToSignIn = useCallback(() => {
         setModal({ ...modal, mode: 'signIn' });
     }, [modal, setModal]);
+
+    // Handle loading state when modal opens
+    useEffect(() => {
+        if (modal.open) {
+            setIsLoading(true);
+            // Set a minimum loading time to show the skeleton
+            const minLoadingTime = setTimeout(() => {
+                setIsLoading(false);
+            }, 1500); // Show loading for at least 1.5 seconds
+
+            return () => clearTimeout(minLoadingTime);
+        }
+    }, [modal.open, modal.mode]);
 
     useEffect(() => {
         const handleClerkNavigation = (event: Event) => {
@@ -241,6 +257,57 @@ const AuthModal = () => {
         },
     } as const;
 
+    // Skeleton loading component
+    const AuthSkeleton = () => (
+        <Box
+            w="100%"
+            maw={420}
+            mx="auto"
+            style={{
+                background: themeUtils.getThemedColor('#ffffff', '#1a1b1e', isDark),
+                border: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
+                borderRadius: '16px',
+                padding: '24px',
+            }}
+        >
+            <Stack gap="lg" align="center">
+                <ThemeIcon 
+                    color="blue" 
+                    variant="light" 
+                    size={60}
+                    style={{ opacity: 0.8 }}
+                >
+                    {modal.mode === 'signIn' ? <IconLogin size={30} /> : <IconUserPlus size={30} />}
+                </ThemeIcon>
+                
+                <Stack gap="xs" align="center" w="100%">
+                    <Skeleton height={32} width={280} radius="md" />
+                    <Skeleton height={20} width={320} radius="sm" />
+                </Stack>
+
+                <Stack gap="md" w="100%" mt="lg">
+                    <Skeleton height={44} radius="md" />
+                    <Skeleton height={44} radius="md" />
+                </Stack>
+
+                <Stack gap="sm" w="100%">
+                    <Skeleton height={44} radius="md" />
+                </Stack>
+
+                <Skeleton height={16} width={240} radius="sm" />
+            </Stack>
+
+            <Box ta="center" mt="lg">
+                <Text size="sm" c="dimmed">
+                    {modal.mode === 'signIn' 
+                        ? 'Loading sign in form...' 
+                        : 'Loading sign up form...'
+                    }
+                </Text>
+            </Box>
+        </Box>
+    );
+
     return (
         <Modal
             opened={modal.open}
@@ -295,22 +362,26 @@ const AuthModal = () => {
                     }}
                 />
                 
-                {modal.mode === 'signIn' ? (
-                    <SignIn 
-                        afterSignInUrl="/dashboard" 
-                        signUpUrl="#"
-                        appearance={appearance}
-                        routing="virtual"
-                        afterSignUpUrl="/dashboard"
-                    />
+                {isLoading ? (
+                    <AuthSkeleton />
                 ) : (
-                    <SignUp 
-                        afterSignUpUrl="/dashboard" 
-                        signInUrl="#"
-                        appearance={appearance}
-                        routing="virtual"
-                        afterSignInUrl="/dashboard"
-                    />
+                    modal.mode === 'signIn' ? (
+                        <SignIn 
+                            afterSignInUrl="/dashboard" 
+                            signUpUrl="#"
+                            appearance={appearance}
+                            routing="virtual"
+                            afterSignUpUrl="/dashboard"
+                        />
+                    ) : (
+                        <SignUp 
+                            afterSignUpUrl="/dashboard" 
+                            signInUrl="#"
+                            appearance={appearance}
+                            routing="virtual"
+                            afterSignInUrl="/dashboard"
+                        />
+                    )
                 )}
             </Box>
         </Modal>

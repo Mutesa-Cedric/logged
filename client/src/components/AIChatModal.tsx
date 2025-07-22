@@ -483,26 +483,24 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                             borderTop: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
                         }}>
                             <form onSubmit={handleSubmit}>
-                                <Group gap="sm">
+                                <Group gap="sm" align="flex-end">
                                     <TextInput
                                         flex={1}
                                         value={input}
                                         onChange={handleInputChange}
                                         placeholder="Ask about your logs..."
                                         disabled={isLoading || !aiAvailable}
-                                        rightSection={
-                                            <Button
-                                                type="submit"
-                                                disabled={!input.trim() || isLoading || !aiAvailable}
-                                                variant="light"
-                                                color="blue"
-                                                size="sm"
-                                                leftSection={isLoading ? <Loader size="xs" /> : <IconSend size={16} />}
-                                            >
-                                                Send
-                                            </Button>
-                                        }
                                     />
+                                    <Button
+                                        type="submit"
+                                        disabled={!input.trim() || isLoading || !aiAvailable}
+                                        variant="light"
+                                        color="blue"
+                                        size="sm"
+                                        leftSection={isLoading ? <Loader size="xs" /> : <IconSend size={16} />}
+                                    >
+                                        Send
+                                    </Button>
                                 </Group>
                             </form>
                         </Box>

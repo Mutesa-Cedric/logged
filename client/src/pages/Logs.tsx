@@ -42,6 +42,7 @@ import { themeUtils, useTheme } from '../lib/theme';
 import { useConnections, useConnectToServer } from '../services/connections';
 import {
     activeConnectionIdAtom,
+    addConnectionModalAtom,
     connectionStatusAtom,
     logStreamingAtom,
     userPreferencesAtom
@@ -65,7 +66,7 @@ export const LogsPage = () => {
     const [lastError, setLastError] = useState<string | null>(null);
     const [commandHistory, setCommandHistory] = useState<Array<{ command: string, timestamp: Date, success: boolean, error?: string }>>([]);
     const [isAIChatOpen, setIsAIChatOpen] = useState(false);
-
+    const [, setAddConnectionModal] = useAtom(addConnectionModalAtom);
     const surfaceColors = themeUtils.getSurfaceColors(isDark);
 
     const [activeConnectionId, setActiveConnectionId] = useAtom(activeConnectionIdAtom);
@@ -187,7 +188,7 @@ export const LogsPage = () => {
         return matchesSearch && matchesLevel;
     });
 
-        useEffect(() => {
+    useEffect(() => {
         if (import.meta.env.DEV && logs.length > 0) {
             logs.reduce((acc, log) => {
                 const level = getLogLevel(log.data);
@@ -798,7 +799,7 @@ export const LogsPage = () => {
             </Group>
 
             {/* Log Display */}
-                                <Card padding={0} radius="md" withBorder style={{ minHeight: 500 }}>
+            <Card padding={0} radius="md" withBorder style={{ minHeight: 500 }}>
                 <Group justify="space-between" p="md" style={{ borderBottom: '1px solid var(--mantine-color-gray-2)' }}>
                     <Group gap="xs">
                         <IconTerminal2 size={16} />
@@ -812,9 +813,9 @@ export const LogsPage = () => {
                         )}
                     </Group>
                     <Group gap="xs">
-                    <Text size="xs" c="dimmed">
-                        {filteredLogs.length} entries shown
-                    </Text>
+                        <Text size="xs" c="dimmed">
+                            {filteredLogs.length} entries shown
+                        </Text>
                         {logs.length > 0 && (
                             <Button
                                 onClick={() => setIsAIChatOpen(true)}
@@ -847,10 +848,10 @@ export const LogsPage = () => {
                                         <Button
                                             size="sm"
                                             variant="light"
-                                            onClick={() => window.location.href = '/connections'}
+                                            onClick={() => setAddConnectionModal({ open: true, editingConnection: null })}
                                         >
                                             Add Connection
-                                        </Button>
+                                        </Button> 
                                     )}
                                 </Stack>
                             </Group>

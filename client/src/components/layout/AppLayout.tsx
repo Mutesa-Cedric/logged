@@ -355,13 +355,22 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                                 )}
 
                                 {isGuestMode && (
-                                    <Menu.Item
-                                        leftSection={<IconUser size={14} />}
-                                        onClick={() => setAuthModal({ open: true, mode: 'signIn' })}
-                                        color="blue"
-                                    >
-                                        Sign In
-                                    </Menu.Item>
+                                    <>
+                                        <Menu.Item
+                                            leftSection={<IconUser size={14} />}
+                                            onClick={() => setAuthModal({ open: true, mode: 'signIn' })}
+                                            color="blue"
+                                        >
+                                            Sign In
+                                        </Menu.Item>
+                                        <Menu.Item
+                                            leftSection={<IconLogout size={14} />}
+                                            onClick={() => window.location.href = '/'}
+                                            color="red"
+                                        >
+                                            Exit Guest Mode
+                                        </Menu.Item>
+                                    </>
                                 )}
                             </Menu.Dropdown>
                         </Menu>
