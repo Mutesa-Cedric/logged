@@ -284,6 +284,12 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                 </Group>
             }
             styles={{
+                inner: {
+                    padding: '20px',
+                    '@media (max-width: 48em)': {
+                        padding: '10px',
+                    },
+                },
                 header: {
                     backgroundColor: themeUtils.getThemedColor('#ffffff', '#1a1b1e', isDark),
                     borderBottom: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
@@ -298,6 +304,10 @@ export const AIChatModal = ({ isOpen, onClose, logs }: AIChatModalProps) => {
                     transition: 'all 0.3s ease',
                     transform: isFullscreen ? 'scale(1)' : 'scale(0.98)',
                     animation: isFullscreen ? 'modalExpand 0.3s ease' : 'modalContract 0.3s ease',
+                    '@media (max-width: 48em)': {
+                        margin: '10px',
+                        height: 'calc(100vh - 20px)',
+                    },
                 },
             }}
         >

@@ -333,10 +333,13 @@ const AuthModal = () => {
                 },
                 inner: {
                     padding: '20px',
+                    '@media (max-width: 48em)': {
+                        padding: '10px',
+                    },
                 },
             }}
         >
-            <Box pos="relative" w="100%" maw={440} mx="auto">
+            <Box pos="relative" w="100%" maw={440} mx="auto" px={{ base: 'xs', sm: 0 }}>
                 <CloseButton
                     onClick={close}
                     size="lg"

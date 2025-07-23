@@ -15,6 +15,7 @@ import {
     UnstyledButton,
     useMantineTheme,
 } from '@mantine/core';
+import { useDisclosure } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
     IconActivity,
@@ -65,6 +66,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
     const { isDark } = useTheme();
 
     const [sidebarCollapsed, setSidebarCollapsed] = useAtom(sidebarCollapsedAtom);
+    const [mobileNavOpened, { toggle: toggleMobileNav, close: closeMobileNav }] = useDisclosure(false);
     const [connectionStatus] = useAtom(connectionStatusAtom);
     const [isGuestMode] = useAtom(isGuestModeAtom);
     const [logStreaming] = useAtom(logStreamingAtom);
@@ -182,6 +184,7 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                                 <UnstyledButton
                                     component={Link}
                                     to={item.href}
+                                    onClick={closeMobileNav}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
@@ -264,10 +267,10 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
             navbar={{
                 width: sidebarCollapsed ? 70 : 280,
                 breakpoint: 'sm',
-                collapsed: { mobile: sidebarCollapsed }
+                collapsed: { desktop: false, mobile: !mobileNavOpened }
             }}
             header={{ height: 60 }}
-            padding="md"
+            padding={{ base: "xs", sm: "md" }}
             styles={{
                 navbar: {
                     borderRight: `1px solid ${themeUtils.getThemedColor(theme.colors.gray[2], theme.colors.gray[7], isDark)}`,
@@ -284,9 +287,16 @@ export const AppLayout = ({ children }: AppLayoutProps) => {
                 <Group h="100%" px="md" justify="space-between">
                     <Group>
                         <Burger
+                            opened={mobileNavOpened}
+                            onClick={toggleMobileNav}
+                            size="sm"
+                            hiddenFrom="sm"
+                        />
+                        <Burger
                             opened={!sidebarCollapsed}
                             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                             size="sm"
+                            visibleFrom="sm"
                         />
 
                         {/* <ActionIcon variant="subtle" color="gray" size="lg">

@@ -2,6 +2,7 @@ import {
     ActionIcon,
     Alert,
     Badge,
+    Box,
     Button,
     Card,
     Collapse,
@@ -498,26 +499,44 @@ export const LogsPage = () => {
     return (
         <Stack gap="md">
             {/* Header */}
-            <Group justify="space-between">
-                <div>
-                    <Title order={2}>Log Viewer</Title>
-                    <Text c="dimmed" size="sm">
-                        Real-time server logs and monitoring
-                        {activeConnection && (
-                            <> • {activeConnection.name} ({activeConnection.username}@{activeConnection.host})</>
+            <Stack gap="sm">
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                    <Box style={{ minWidth: 0, flex: 1 }}>
+                        <Title order={2} style={{ fontSize: 'clamp(1.25rem, 4vw, 1.5rem)' }}>Log Viewer</Title>
+                        <Text c="dimmed" size="sm" truncate>
+                            Real-time server logs and monitoring
+                            {activeConnection && (
+                                <> • {activeConnection.name} ({activeConnection.username}@{activeConnection.host})</>
+                            )}
+                        </Text>
+                    </Box>
+                    <Group gap="xs" visibleFrom="sm">
+                        {isStreaming && (
+                            <Badge color="red" variant="light" size="sm">
+                                LIVE
+                            </Badge>
                         )}
-                    </Text>
-                </div>
-                <Group gap="xs">
+                        {isExecuting && (
+                            <Badge color="blue" variant="light" size="sm">
+                                EXEC
+                            </Badge>
+                        )}
+                        <Text size="xs" c="dimmed">
+                            {filteredLogs.length} / {logs.length}
+                        </Text>
+                    </Group>
+                </Group>
+                
+                <Group gap="xs" style={{ flexWrap: 'wrap' }}>
                     <Select
-                        placeholder={connections?.length ? "Select connection" : "No connections available"}
+                        placeholder={connections?.length ? "Select connection" : "No connections"}
                         data={connections?.map(conn => ({
                             value: conn.id,
                             label: `${conn.name} (${conn.username}@${conn.host})`
                         })) || []}
                         value={activeConnectionId}
                         onChange={setActiveConnectionId}
-                        style={{ minWidth: 200 }}
+                        style={{ minWidth: 200, flex: 1 }}
                         variant="filled"
                         size="sm"
                         disabled={!connections?.length}
@@ -535,13 +554,16 @@ export const LogsPage = () => {
                             {connectionStatus === 'connected' ? 'Connected' : 'Connect'}
                         </Button>
                     </Tooltip>
+                </Group>
+
+                <Group gap="xs" hiddenFrom="sm" style={{ flexWrap: 'wrap' }}>
                     {isStreaming && (
-                        <Badge color="red" variant="light">
+                        <Badge color="red" variant="light" size="sm">
                             LIVE STREAMING
                         </Badge>
                     )}
                     {isExecuting && (
-                        <Badge color="blue" variant="light">
+                        <Badge color="blue" variant="light" size="sm">
                             EXECUTING
                         </Badge>
                     )}
@@ -549,7 +571,7 @@ export const LogsPage = () => {
                         {filteredLogs.length} / {logs.length} lines
                     </Text>
                 </Group>
-            </Group>
+            </Stack>
 
             {/* Error Alert */}
             {lastError && (
@@ -673,14 +695,14 @@ export const LogsPage = () => {
             </Card>
 
             {/* Toolbar */}
-            <Group gap="md" justify="space-between">
-                <Group gap="sm" style={{ flex: 1 }}>
+            <Stack gap="sm">
+                <Group gap="sm" style={{ flexWrap: 'wrap' }}>
                     <TextInput
                         placeholder="Search logs..."
                         leftSection={<IconSearch size={16} />}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        style={{ minWidth: 200 }}
+                        style={{ minWidth: 200, flex: 1 }}
                         variant={searchQuery ? 'filled' : 'default'}
                         rightSection={searchQuery && (
                             <ActionIcon
@@ -711,7 +733,9 @@ export const LogsPage = () => {
                             <Badge size="xs" color="blue" variant="dot" />
                         )}
                     />
+                </Group>
 
+                <Group gap="xs" justify="space-between" style={{ flexWrap: 'wrap' }}>
                     <Switch
                         size="sm"
                         label="Auto-scroll"
@@ -721,82 +745,86 @@ export const LogsPage = () => {
                             autoScroll: e.currentTarget.checked
                         })}
                     />
-                </Group>
 
-                <Group gap="xs">
-                    {(searchQuery || selectedLevel) && (
-                        <Tooltip label="Clear all filters">
-                            <ActionIcon
-                                variant="light"
-                                color="red"
-                                onClick={() => {
-                                    setSearchQuery('');
-                                    setSelectedLevel(null);
-                                }}
-                            >
-                                ×
-                            </ActionIcon>
-                        </Tooltip>
-                    )}
-
-                    <Tooltip label="Scroll to bottom">
-                        <ActionIcon
-                            variant="light"
-                            onClick={scrollToBottom}
-                            disabled={userPreferences.autoScroll}
-                        >
-                            <IconArrowDown size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-
-                    <Tooltip label="Clear logs">
-                        <ActionIcon
-                            variant="light"
-                            color="orange"
-                            onClick={clearLogs}
-                            disabled={logs.length === 0}
-                        >
-                            <IconClearAll size={16} />
-                        </ActionIcon>
-                    </Tooltip>
-
-                    <Menu shadow="md" width={200}>
-                        <Menu.Target>
-                            <Tooltip label="Download logs">
+                    <Group gap="xs">
+                        {(searchQuery || selectedLevel) && (
+                            <Tooltip label="Clear all filters">
                                 <ActionIcon
                                     variant="light"
-                                    color="blue"
-                                    loading={downloadProgress !== null}
+                                    color="red"
+                                    size="sm"
+                                    onClick={() => {
+                                        setSearchQuery('');
+                                        setSelectedLevel(null);
+                                    }}
                                 >
-                                    <IconDownload size={16} />
+                                    ×
                                 </ActionIcon>
                             </Tooltip>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Label>
-                                Download Format
-                                {downloadProgress !== null && (
-                                    <Text size="xs" c="dimmed" mt="xs">
-                                        Progress: {downloadProgress}%
-                                    </Text>
-                                )}
-                            </Menu.Label>
-                            <Menu.Item
-                                onClick={() => handleDownloadLogs('txt')}
-                                disabled={!activeConnectionId || downloadProgress !== null}
+                        )}
+
+                        <Tooltip label="Scroll to bottom">
+                            <ActionIcon
+                                variant="light"
+                                size="sm"
+                                onClick={scrollToBottom}
+                                disabled={userPreferences.autoScroll}
                             >
-                                Download as TXT
-                            </Menu.Item>
-                            <Menu.Item
-                                onClick={() => handleDownloadLogs('json')}
-                                disabled={!activeConnectionId || downloadProgress !== null}
+                                <IconArrowDown size={16} />
+                            </ActionIcon>
+                        </Tooltip>
+
+                        <Tooltip label="Clear logs">
+                            <ActionIcon
+                                variant="light"
+                                color="orange"
+                                size="sm"
+                                onClick={clearLogs}
+                                disabled={logs.length === 0}
                             >
-                                Download as JSON
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
+                                <IconClearAll size={16} />
+                            </ActionIcon>
+                        </Tooltip>
+
+                        <Menu shadow="md" width={200}>
+                            <Menu.Target>
+                                <Tooltip label="Download logs">
+                                    <ActionIcon
+                                        variant="light"
+                                        color="blue"
+                                        size="sm"
+                                        loading={downloadProgress !== null}
+                                    >
+                                        <IconDownload size={16} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Menu.Target>
+                            <Menu.Dropdown>
+                                <Menu.Label>
+                                    Download Format
+                                    {downloadProgress !== null && (
+                                        <Text size="xs" c="dimmed" mt="xs">
+                                            Progress: {downloadProgress}%
+                                        </Text>
+                                    )}
+                                </Menu.Label>
+                                <Menu.Item
+                                    onClick={() => handleDownloadLogs('txt')}
+                                    disabled={!activeConnectionId || downloadProgress !== null}
+                                >
+                                    Download as TXT
+                                </Menu.Item>
+                                <Menu.Item
+                                    onClick={() => handleDownloadLogs('json')}
+                                    disabled={!activeConnectionId || downloadProgress !== null}
+                                >
+                                    Download as JSON
+                                </Menu.Item>
+                            </Menu.Dropdown>
+                        </Menu>
+                    </Group>
                 </Group>
-            </Group>
+            </Stack>
 
             {/* Log Display */}
             <Card padding={0} radius="md" withBorder style={{ minHeight: 500 }}>

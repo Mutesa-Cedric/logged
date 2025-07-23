@@ -248,6 +248,19 @@ export const AddConnectionModal = () => {
                 onClose={handleClose}
                 title={modalState.editingConnection ? 'Edit Connection' : 'Add New Connection'}
                 size="md"
+                styles={{
+                    inner: {
+                        padding: '20px',
+                        '@media (max-width: 48em)': {
+                            padding: '10px',
+                        },
+                    },
+                    content: {
+                        '@media (max-width: 48em)': {
+                            margin: '10px',
+                        },
+                    },
+                }}
             >
                 <form onSubmit={form.onSubmit(handleSubmit)}>
                     <Stack gap="md">

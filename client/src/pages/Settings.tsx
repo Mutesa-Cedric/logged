@@ -1,6 +1,7 @@
 import {
     Alert,
     Badge,
+    Box,
     Button,
     Card,
     Divider,
@@ -63,24 +64,36 @@ export const SettingsPage = () => {
     return (
         <Stack gap="lg">
             {/* Header */}
-            <Group justify="space-between">
-                <div>
-                    <Title order={2}>Settings</Title>
-                    <Text c="dimmed" size="sm">
-                        Configure your application preferences
-                    </Text>
-                </div>
+            <Stack gap="sm">
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                    <Box style={{ minWidth: 0, flex: 1 }}>
+                        <Title order={2} style={{ fontSize: 'clamp(1.25rem, 4vw, 1.5rem)' }}>Settings</Title>
+                        <Text c="dimmed" size="sm">
+                            Configure your application preferences
+                        </Text>
+                    </Box>
+                    <Button
+                        leftSection={<IconCheck size={16} />}
+                        onClick={handleSaveSettings}
+                        size="sm"
+                        visibleFrom="xs"
+                    >
+                        <Text hiddenFrom="sm">Save</Text>
+                        <Text visibleFrom="sm">Save Changes</Text>
+                    </Button>
+                </Group>
                 <Button
                     leftSection={<IconCheck size={16} />}
                     onClick={handleSaveSettings}
+                    hiddenFrom="xs"
+                    fullWidth
                 >
                     Save Changes
                 </Button>
-            </Group>
+            </Stack>
 
             {/* General Settings */}
             <Card
-                
                 padding="lg"
                 radius="md"
                 withBorder
@@ -92,13 +105,13 @@ export const SettingsPage = () => {
                 </Group>
 
                 <Stack gap="md">
-                    <Group justify="space-between">
-                        <div>
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
                             <Text size="sm" fw={500}>Enable Notifications</Text>
                             <Text size="xs" c="dimmed">
                                 Receive alerts for connection status and errors
                             </Text>
-                        </div>
+                        </Box>
                         <Switch
                             checked={notifications_}
                             onChange={(e) => setNotifications(e.currentTarget.checked)}
@@ -107,13 +120,13 @@ export const SettingsPage = () => {
                         />
                     </Group>
 
-                    <Group justify="space-between">
-                        <div>
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
                             <Text size="sm" fw={500}>Auto-connect on startup</Text>
                             <Text size="xs" c="dimmed">
                                 Automatically connect to the last used server
                             </Text>
-                        </div>
+                        </Box>
                         <Switch
                             checked={autoConnect}
                             onChange={(e) => setAutoConnect(e.currentTarget.checked)}
@@ -122,13 +135,13 @@ export const SettingsPage = () => {
                         />
                     </Group>
 
-                    <Group justify="space-between">
-                        <div>
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
                             <Text size="sm" fw={500}>Log Level</Text>
                             <Text size="xs" c="dimmed">
                                 Minimum log level to display
                             </Text>
-                        </div>
+                        </Box>
                         <Select
                             data={[
                                 { value: 'debug', label: 'Debug' },
@@ -147,13 +160,13 @@ export const SettingsPage = () => {
                         />
                     </Group>
 
-                    <Group justify="space-between">
-                        <div>
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
                             <Text size="sm" fw={500}>Refresh Interval</Text>
                             <Text size="xs" c="dimmed">
                                 Seconds between automatic updates
                             </Text>
-                        </div>
+                        </Box>
                         <NumberInput
                             value={refreshInterval}
                             onChange={(value) => setRefreshInterval(Number(value))}
@@ -169,13 +182,13 @@ export const SettingsPage = () => {
                         />
                     </Group>
 
-                    <Group justify="space-between">
-                        <div>
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
                             <Text size="sm" fw={500}>Auto-scroll Logs</Text>
                             <Text size="xs" c="dimmed">
                                 Automatically scroll to newest log entries
                             </Text>
-                        </div>
+                        </Box>
                         <Switch
                             checked={autoScroll}
                             onChange={(e) => setAutoScroll(e.currentTarget.checked)}

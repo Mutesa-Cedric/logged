@@ -425,3 +425,111 @@ select,
         color: var(--mantine-color-blue-6);
     }
 }
+
+@media (max-width: 768px) {
+    /* Improve touch targets on mobile */
+    .logged-card {
+        padding: 0.75rem !important;
+    }
+
+    /* Better spacing on mobile */
+    .logged-container-mobile {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    /* Improved button sizing for mobile */
+    button[data-size="xs"] {
+        min-height: 36px;
+        font-size: 0.875rem;
+    }
+
+    /* Better text wrapping */
+    .logged-text-wrap {
+        word-break: break-word;
+        hyphens: auto;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Extra small screens */
+    .logged-card {
+        padding: 0.5rem !important;
+    }
+    
+    /* Stack elements vertically on very small screens */
+    .logged-mobile-stack {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+
+    .logged-mobile-stack > * {
+        width: 100% !important;
+        margin-bottom: 0.5rem;
+    }
+
+    .logged-mobile-stack > *:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Feature grid with responsive ordering */
+.feature-grid-reverse {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--mantine-spacing-lg);
+    align-items: center;
+}
+
+.feature-image-reverse {
+    order: 2; /* Image comes after text on mobile */
+}
+
+.feature-content-reverse {
+    order: 1; /* Text comes first on mobile */
+}
+
+@media (min-width: 768px) {
+    .feature-grid-reverse {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--mantine-spacing-xl);
+    }
+    
+    .feature-image-reverse {
+        order: 1; /* Image comes first on desktop */
+    }
+    
+    .feature-content-reverse {
+        order: 2; /* Text comes second on desktop */
+    }
+}
+
+/* mobile navigation improvements */
+@media (max-width: 768px) {
+    /* mobile navbar appears above content */
+    [data-mantine-navbar] {
+        z-index: 200 !important;
+    }
+    
+    /* backdrop when mobile nav is open */
+    [data-mantine-navbar][data-hidden="false"] + [data-mantine-main] {
+        position: relative;
+    }
+    
+    [data-mantine-navbar][data-hidden="false"] + [data-mantine-main]::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 100;
+        animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+}

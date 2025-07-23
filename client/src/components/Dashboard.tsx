@@ -52,13 +52,13 @@ interface StatsCardProps {
 
 const StatsCard = ({ title, value, icon: Icon, color, description }: StatsCardProps) => {
     return (
-        <Card padding="lg" radius="md" withBorder>
+        <Card padding="lg" radius="md" withBorder style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
             <Group justify="space-between" align="flex-start">
                 <Box>
                     <Text size="sm" c="dimmed" fw={500} mb={4}>
                         {title}
                     </Text>
-                    <Text size="xl" fw={700} mb={2}>
+                    <Text size="xl" fw={700} mb={2} style={{ fontSize: 'clamp(1.125rem, 3vw, 1.25rem)' }}>
                         {value}
                     </Text>
                     <Text size="xs" c="dimmed">
@@ -91,57 +91,65 @@ const ConnectionCard = ({ connection, onEdit, onConnect }: ConnectionCardProps) 
         new Date(connection.lastUsed) > new Date(Date.now() - 5 * 60 * 1000);
 
     return (
-        <Card padding="md" radius="md" withBorder>
-            <Group justify="space-between" align="center">
-                <Group gap="md">
-                    <Avatar color="blue" size="md" radius="md">
-                        <IconServer size={18} />
-                    </Avatar>
-                    <Box>
-                        <Text size="sm" fw={600}>
-                            {connection.name}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            {connection.username}@{connection.host}:{connection.port}
-                        </Text>
-                        {connection.lastUsed && (
-                            <Text size="xs" c="dimmed">
-                                Last used {dayjs(connection.lastUsed).fromNow()}
+        <Card padding="md" radius="md" withBorder style={{ padding: 'clamp(0.5rem, 2vw, 1rem)' }}>
+            <Stack gap="sm">
+                <Group justify="space-between" align="center">
+                    <Group gap="md" wrap="nowrap">
+                        <Avatar color="blue" size="md" radius="md">
+                            <IconServer size={18} />
+                        </Avatar>
+                        <Box style={{ minWidth: 0, flex: 1 }}>
+                            <Text size="sm" fw={600} truncate>
+                                {connection.name}
                             </Text>
-                        )}
-                    </Box>
-                </Group>
+                            <Text size="xs" c="dimmed" truncate>
+                                {connection.username}@{connection.host}:{connection.port}
+                            </Text>
+                            {connection.lastUsed && (
+                                <Text size="xs" c="dimmed" hiddenFrom="sm">
+                                    {dayjs(connection.lastUsed).fromNow()}
+                                </Text>
+                            )}
+                        </Box>
+                    </Group>
 
-                <Group gap="xs">
-                    <Badge
-                        color={isConnected ? 'green' : 'gray'}
-                        variant="light"
-                        size="sm"
-                    >
-                        {isConnected ? 'Active' : 'Inactive'}
-                    </Badge>
-                    {onConnect && (
-                        <ActionIcon
+                    <Group gap="xs" wrap="nowrap">
+                        <Badge
+                            color={isConnected ? 'green' : 'gray'}
                             variant="light"
-                            color="blue"
                             size="sm"
-                            onClick={onConnect}
                         >
-                            <IconTerminal2 size={14} />
-                        </ActionIcon>
-                    )}
-                    {onEdit && (
-                        <ActionIcon
-                            variant="subtle"
-                            color="gray"
-                            size="sm"
-                            onClick={onEdit}
-                        >
-                            <IconSettings size={14} />
-                        </ActionIcon>
-                    )}
+                            {isConnected ? 'Active' : 'Inactive'}
+                        </Badge>
+                        {onConnect && (
+                            <ActionIcon
+                                variant="light"
+                                color="blue"
+                                size="sm"
+                                onClick={onConnect}
+                            >
+                                <IconTerminal2 size={14} />
+                            </ActionIcon>
+                        )}
+                        {onEdit && (
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                size="sm"
+                                onClick={onEdit}
+                                visibleFrom="sm"
+                            >
+                                <IconSettings size={14} />
+                            </ActionIcon>
+                        )}
+                    </Group>
                 </Group>
-            </Group>
+                {connection.lastUsed && (
+                    <Text size="xs" c="dimmed" visibleFrom="sm">
+                        Last used {dayjs(connection.lastUsed).fromNow()}
+                    </Text>
+                )}
+            </Stack>
         </Card>
     );
 };
@@ -202,52 +210,67 @@ export const Dashboard = () => {
     return (
         <Stack gap="xl">
             {/* Header Section */}
-            <Card padding="xl" radius="md" withBorder>
-                <Group justify="space-between" align="flex-start">
-                    <Box>
-                        <Title order={2} mb="xs">
-                            Welcome back, {isGuestMode ? 'Guest' : user?.firstName || 'User'}! 👋
-                        </Title>
-                        <Text c="dimmed" size="sm" mb="md">
-                            {isGuestMode
-                                ? 'You\'re in guest mode. Sign up to save your data permanently.'
-                                : 'Here\'s your server management overview.'
-                            }
-                        </Text>
+            <Card padding="xl" radius="md" withBorder style={{ padding: 'clamp(1rem, 3vw, 1.5rem)' }}>
+                <Stack gap="md">
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
+                            <Title order={2} mb="xs" style={{ fontSize: 'clamp(1.25rem, 4vw, 1.5rem)' }}>
+                                Welcome back, {isGuestMode ? 'Guest' : user?.firstName || 'User'}! 👋
+                            </Title>
+                            <Text c="dimmed" size="sm" mb="md">
+                                {isGuestMode
+                                    ? 'You\'re in guest mode. Sign up to save your data permanently.'
+                                    : 'Here\'s your server management overview.'
+                                }
+                            </Text>
+                        </Box>
 
-                        {isGuestMode && (
-                            <Alert
-                                icon={<IconInfoCircle size={16} />}
-                                color="blue"
-                                variant="light"
-                            >
-                                <Group justify="space-between" align="center">
-                                    <Text size="sm">
-                                        Create an account to save connections and access all features
-                                    </Text>
-                                    <Button
-                                        size="xs"
-                                        variant="light"
-                                        onClick={() => setAuthModal({ open: true, mode: 'signUp' })}
-                                    >
-                                        Sign Up
-                                    </Button>
-                                </Group>
-                            </Alert>
-                        )}
-                    </Box>
+                        <Button
+                            leftSection={<IconPlus size={16} />}
+                            onClick={() => setShowAddConnectionModal({ open: true, editingConnection: null })}
+                            size="sm"
+                            visibleFrom="xs"
+                        >
+                            <Text hiddenFrom="sm">Add</Text>
+                            <Text visibleFrom="sm">Add Connection</Text>
+                        </Button>
+                    </Group>
+
+                    {isGuestMode && (
+                        <Alert
+                            icon={<IconInfoCircle size={16} />}
+                            color="blue"
+                            variant="light"
+                        >
+                            <Stack gap="xs">
+                                <Text size="sm">
+                                    Create an account to save connections and access all features
+                                </Text>
+                                <Button
+                                    size="xs"
+                                    variant="light"
+                                    onClick={() => setAuthModal({ open: true, mode: 'signUp' })}
+                                    style={{ width: '100%' }}
+                                >
+                                    Sign Up
+                                </Button>
+                            </Stack>
+                        </Alert>
+                    )}
 
                     <Button
                         leftSection={<IconPlus size={16} />}
                         onClick={() => setShowAddConnectionModal({ open: true, editingConnection: null })}
+                        hiddenFrom="xs"
+                        fullWidth
                     >
                         Add Connection
                     </Button>
-                </Group>
+                </Stack>
             </Card>
 
             {/* Stats Overview */}
-            <SimpleGrid cols={{ base: 2, md: 4 }} spacing="md">
+            <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }} spacing="md">
                 {stats.map((stat, index) => (
                     <StatsCard key={index} {...stat} />
                 ))}

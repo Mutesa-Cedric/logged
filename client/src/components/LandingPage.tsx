@@ -215,6 +215,7 @@ export const LandingPage = () => {
                                     variant="subtle"
                                     onClick={handleSignIn}
                                     size="sm"
+                                    // visibleFrom="sm"
                                 >
                                     Sign In
                                 </Button>
@@ -224,7 +225,8 @@ export const LandingPage = () => {
                                     gradient={{ from: 'blue', to: 'violet' }}
                                     variant="gradient"
                                 >
-                                    Sign Up
+                                    <Text hiddenFrom="sm">Join</Text>
+                                    <Text visibleFrom="sm">Sign Up</Text>
                                 </Button>
                             </>
                         )}
@@ -233,7 +235,7 @@ export const LandingPage = () => {
             </Container>
 
             {/* Hero Section */}
-            <Container size="lg" py={80}>
+            <Container size="lg" py={{ base: 40, sm: 60, md: 80 }}>
                 <Stack align="center" gap="xl" ta="center">
                     <Stack align="center" gap="lg">
                         <Group gap="xs" justify="center">
@@ -248,13 +250,13 @@ export const LandingPage = () => {
 
                         <Title
                             order={1}
-                            size={64}
                             fw={700}
                             lh={1.1}
                             maw={800}
                             style={{
                                 color: themeUtils.getThemedColor('#1e293b', '#f1f5f9', isDark),
                                 letterSpacing: '-0.02em',
+                                fontSize: 'clamp(2rem, 6vw, 4rem)',
                             }}
                         >
                             Server Log Monitoring
@@ -264,7 +266,7 @@ export const LandingPage = () => {
                                     background: themeUtils.getGradient('primary'),
                                     WebkitBackgroundClip: 'text',
                                     WebkitTextFillColor: 'transparent',
-                                    fontSize: '1.5rem',
+                                    fontSize: 'clamp(1.25rem, 4vw, 1.5rem)',
                                     fontWeight: 'bold',
                                     marginTop: '10px',
                                 }}
@@ -278,19 +280,22 @@ export const LandingPage = () => {
                             c="dimmed"
                             maw={700}
                             lh={1.6}
+                            ta="center"
+                            style={{ fontSize: 'clamp(1rem, 2.5vw, 1.25rem)' }}
                         >
                             Monitor server logs in real-time with secure SSH connections, AI-powered analysis,
                             and beautiful dark mode. Your credentials are encrypted client-side with AES-256.
                         </Text>
                     </Stack>
 
-                    <Group gap="md" justify="center">
+                    <Group gap="md" justify="center" style={{ flexWrap: 'wrap' }}>
                         <Button
                             onClick={handleGuestAccess}
                             size="lg"
                             gradient={{ from: 'blue', to: 'violet' }}
                             variant="gradient"
                             leftSection={<IconEye size={18} />}
+                            style={{ minWidth: '160px' }}
                         >
                             Try as Guest
                         </Button>
@@ -299,6 +304,7 @@ export const LandingPage = () => {
                             size="lg"
                             variant="outline"
                             leftSection={<IconDeviceFloppy size={18} />}
+                            style={{ minWidth: '160px' }}
                         >
                             Sign Up & Save
                         </Button>
@@ -311,7 +317,7 @@ export const LandingPage = () => {
             </Container>
 
             {/* Hero Screenshot */}
-            <Container size="xl" py={40}>
+            <Container size="xl" py={{ base: 20, sm: 30, md: 40 }}>
                 <Center>
                     <Image
                         src={getScreenshot(
@@ -332,16 +338,16 @@ export const LandingPage = () => {
             </Container>
 
             {/* Features Section */}
-            <Container size="lg" py={80}>
+            <Container size="lg" py={{ base: 40, sm: 60, md: 80 }}>
                 <Stack align="center" gap="xl">
                     <Stack align="center" gap="md" ta="center">
                         <Title
                             order={2}
-                            size="h1"
                             fw={600}
                             style={{
                                 color: themeUtils.getThemedColor('#1e293b', '#f1f5f9', isDark),
                                 letterSpacing: '-0.02em',
+                                fontSize: 'clamp(1.75rem, 4vw, 2.5rem)',
                             }}
                         >
                             Everything You Need
@@ -350,14 +356,16 @@ export const LandingPage = () => {
                             size="lg"
                             c="dimmed"
                             maw={600}
+                            ta="center"
+                            style={{ fontSize: 'clamp(1rem, 2vw, 1.125rem)' }}
                         >
                             Powerful features designed for developers who need reliable log monitoring
                         </Text>
                     </Stack>
 
-                    <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }} spacing="xl" w="100%">
+                    <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing={{ base: "lg", md: "xl" }} w="100%">
                         {features.map((feature, index) => (
-                            <Stack align="center" gap="md" ta="center" key={index}>
+                            <Stack align="center" gap="md" ta="center" key={index} p="md">
                                 <ThemeIcon
                                     color="blue"
                                     variant="light"
@@ -367,11 +375,11 @@ export const LandingPage = () => {
                                     <feature.icon size={28} />
                                 </ThemeIcon>
 
-                                <Title order={3} size="h3" fw={600}>
+                                <Title order={3} fw={600} style={{ fontSize: 'clamp(1.125rem, 2vw, 1.25rem)' }}>
                                     {feature.title}
                                 </Title>
 
-                                <Text c="dimmed" lh={1.6}>
+                                <Text c="dimmed" lh={1.6} style={{ fontSize: 'clamp(0.875rem, 1.5vw, 1rem)' }}>
                                     {feature.description}
                                 </Text>
                             </Stack>
@@ -381,22 +389,22 @@ export const LandingPage = () => {
             </Container>
 
             {/* Feature Screenshots Section */}
-            <Container size="xl" py={80}>
-                <Stack gap={80}>
+            <Container size="xl" py={80} style={{ paddingTop: 'clamp(2.5rem, 6vw, 5rem)', paddingBottom: 'clamp(2.5rem, 6vw, 5rem)' }}>
+                <Stack gap={80} style={{ gap: 'clamp(2.5rem, 6vw, 5rem)' }}>
                     {/* AI Analysis Feature */}
-                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" style={{ alignItems: 'center' }}>
+                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing={{ base: "lg", md: "xl" }} style={{ alignItems: 'center' }}>
                         <Stack gap="lg">
                             <Badge variant="light" color="violet" size="md" w="fit-content">
                                 AI-Powered
                             </Badge>
-                            <Title order={2} size="h1" fw={600}>
+                            <Title order={2} fw={600} style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)' }}>
                                 Get Instant Insights
                             </Title>
-                            <Text size="lg" c="dimmed" lh={1.6}>
+                            <Text c="dimmed" lh={1.6} style={{ fontSize: 'clamp(1rem, 2vw, 1.125rem)' }}>
                                 Ask questions about your logs and get intelligent answers. Find errors,
                                 security issues, and performance problems automatically with GPT-4.
                             </Text>
-                            <Group gap="md">
+                            <Group gap="md" style={{ flexWrap: 'wrap' }}>
                                 <Text size="sm" c="dimmed">✓ Error detection</Text>
                                 <Text size="sm" c="dimmed">✓ Pattern analysis</Text>
                                 <Text size="sm" c="dimmed">✓ Security alerts</Text>
@@ -413,7 +421,7 @@ export const LandingPage = () => {
                     </SimpleGrid>
 
                     {/* Connection Management Feature */}
-                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" style={{ alignItems: 'center' }}>
+                    <div className="feature-grid-reverse">
                         <Image
                             src={getScreenshot(
                                 '/assets/screenshots/connections-light-mac.png',
@@ -421,40 +429,41 @@ export const LandingPage = () => {
                             )}
                             alt="Connection Management"
                             style={{ borderRadius: '12px' }}
+                            className="feature-image-reverse"
                         />
-                        <Stack gap="lg">
+                        <Stack gap="lg" className="feature-content-reverse">
                             <Badge variant="light" color="blue" size="md" w="fit-content">
                                 Secure
                             </Badge>
-                            <Title order={2} size="h1" fw={600}>
+                            <Title order={2} fw={600} style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)' }}>
                                 Manage Connections
                             </Title>
-                            <Text size="lg" c="dimmed" lh={1.6}>
+                            <Text c="dimmed" lh={1.6} style={{ fontSize: 'clamp(1rem, 2vw, 1.125rem)' }}>
                                 Save multiple server connections with encrypted credentials. Support for
                                 password and SSH key authentication with zero-knowledge encryption.
                             </Text>
-                            <Group gap="md">
+                            <Group gap="md" style={{ flexWrap: 'wrap' }}>
                                 <Text size="sm" c="dimmed">✓ AES-256 encryption</Text>
                                 <Text size="sm" c="dimmed">✓ SSH key support</Text>
                                 <Text size="sm" c="dimmed">✓ Zero-knowledge</Text>
                             </Group>
                         </Stack>
-                    </SimpleGrid>
+                    </div>
 
                     {/* Log Monitoring Feature */}
-                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing="xl" style={{ alignItems: 'center' }}>
+                    <SimpleGrid cols={{ base: 1, md: 2 }} spacing={{ base: "lg", md: "xl" }} style={{ alignItems: 'center' }}>
                         <Stack gap="lg">
                             <Badge variant="light" color="green" size="md" w="fit-content">
                                 Real-time
                             </Badge>
-                            <Title order={2} size="h1" fw={600}>
+                            <Title order={2} fw={600} style={{ fontSize: 'clamp(1.5rem, 3vw, 2.25rem)' }}>
                                 Live Log Streaming
                             </Title>
-                            <Text size="lg" c="dimmed" lh={1.6}>
+                            <Text c="dimmed" lh={1.6} style={{ fontSize: 'clamp(1rem, 2vw, 1.125rem)' }}>
                                 Watch logs update in real-time with WebSocket streaming. Filter, search,
                                 and export logs with syntax highlighting and smart formatting.
                             </Text>
-                            <Group gap="md">
+                            <Group gap="md" style={{ flexWrap: 'wrap' }}>
                                 <Text size="sm" c="dimmed">✓ WebSocket streaming</Text>
                                 <Text size="sm" c="dimmed">✓ Export options</Text>
                                 <Text size="sm" c="dimmed">✓ Syntax highlighting</Text>
@@ -473,9 +482,9 @@ export const LandingPage = () => {
             </Container>
 
             {/* CTA Section */}
-            <Container size="lg" py={80}>
+            <Container size="lg" py={{ base: 40, sm: 60, md: 80 }}>
                 <Box
-                    p="xl"
+                    p={{ base: "lg", sm: "xl" }}
                     style={{
                         background: themeUtils.getGradient('primary'),
                         borderRadius: '16px',
@@ -489,6 +498,7 @@ export const LandingPage = () => {
                                 size="h1"
                                 c="white"
                                 fw={600}
+                                style={{ fontSize: 'clamp(1.5rem, 4vw, 2.5rem)' }}
                             >
                                 Ready to Start Monitoring?
                             </Title>
@@ -497,19 +507,21 @@ export const LandingPage = () => {
                                 c="white"
                                 opacity={0.9}
                                 maw={500}
+                                ta="center"
+                                style={{ fontSize: 'clamp(1rem, 2.5vw, 1.125rem)' }}
                             >
                                 Join developers who trust Logged for their server monitoring.
-
                             </Text>
                         </Stack>
 
-                        <Group gap="md">
+                        <Group gap="md" style={{ flexWrap: 'wrap' }} justify="center">
                             <Button
                                 onClick={handleGuestAccess}
                                 size="lg"
                                 variant="white"
                                 color="dark"
                                 fw={600}
+                                style={{ minWidth: '160px' }}
                             >
                                 Continue as Guest
                             </Button>
@@ -518,7 +530,7 @@ export const LandingPage = () => {
                                 size="lg"
                                 variant="outline"
                                 c="white"
-                                style={{ borderColor: 'white' }}
+                                style={{ borderColor: 'white', minWidth: '160px' }}
                             >
                                 Create account
                             </Button>

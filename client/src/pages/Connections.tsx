@@ -3,6 +3,7 @@ import {
     Alert,
     Avatar,
     Badge,
+    Box,
     Button,
     Card,
     Group,
@@ -171,20 +172,33 @@ export const ConnectionsPage = () => {
 
     return (
         <Stack gap="lg">
-            <Group justify="space-between">
-                <div>
-                    <Title order={2}>Server Connections</Title>
-                    <Text c="dimmed" size="sm">
-                        Manage your SSH server connections
-                    </Text>
-                </div>
+            <Stack gap="sm">
+                <Group justify="space-between" align="flex-start" wrap="nowrap">
+                    <Box style={{ minWidth: 0, flex: 1 }}>
+                        <Title order={2} style={{ fontSize: 'clamp(1.25rem, 4vw, 1.5rem)' }}>Server Connections</Title>
+                        <Text c="dimmed" size="sm">
+                            Manage your SSH server connections
+                        </Text>
+                    </Box>
+                    <Button
+                        leftSection={<IconPlus size={16} />}
+                        onClick={() => setAddConnectionModal({ open: true, editingConnection: null })}
+                        size="sm"
+                        visibleFrom="xs"
+                    >
+                        <Text hiddenFrom="sm">Add</Text>
+                        <Text visibleFrom="sm">Add Connection</Text>
+                    </Button>
+                </Group>
                 <Button
                     leftSection={<IconPlus size={16} />}
                     onClick={() => setAddConnectionModal({ open: true, editingConnection: null })}
+                    hiddenFrom="xs"
+                    fullWidth
                 >
                     Add Connection
                 </Button>
-            </Group>
+            </Stack>
 
             <Alert icon={<IconInfoCircle size={16} />} color={isGuestMode ? "orange" : "blue"} variant="light">
                 <Text size="sm">
@@ -200,36 +214,88 @@ export const ConnectionsPage = () => {
                     {connections.map((connection) => {
                         const status = getConnectionStatus(connection);
                         return (
-                            <Card key={connection.id} padding="lg" radius="md" withBorder>
-                                <Group justify="space-between" align="center">
-                                    <Group gap="md">
-                                        <Avatar color="blue" size="md" radius="md">
-                                            <IconServer size={18} />
-                                        </Avatar>
-                                        <div>
-                                            <Text fw={600} size="sm">
-                                                {connection.name}
-                                            </Text>
-                                            <Text size="xs" c="dimmed">
-                                                {connection.username}@{connection.host}:{connection.port}
-                                            </Text>
-                                            {connection.lastUsed && (
-                                                <Text size="xs" c="dimmed">
-                                                    Last used {new Date(connection.lastUsed).toLocaleDateString()}
+                            <Card key={connection.id} padding="lg" radius="md" withBorder style={{ padding: 'clamp(0.5rem, 2vw, 1.25rem)' }}>
+                                <Stack gap="sm">
+                                    <Group justify="space-between" align="center" wrap="nowrap">
+                                        <Group gap="md" wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+                                            <Avatar color="blue" size="md" radius="md">
+                                                <IconServer size={18} />
+                                            </Avatar>
+                                            <Box style={{ minWidth: 0, flex: 1 }}>
+                                                <Text fw={600} size="sm" truncate>
+                                                    {connection.name}
                                                 </Text>
-                                            )}
-                                        </div>
+                                                <Text size="xs" c="dimmed" truncate>
+                                                    {connection.username}@{connection.host}:{connection.port}
+                                                </Text>
+                                                {connection.lastUsed && (
+                                                    <Text size="xs" c="dimmed" hiddenFrom="sm">
+                                                        {new Date(connection.lastUsed).toLocaleDateString()}
+                                                    </Text>
+                                                )}
+                                            </Box>
+                                        </Group>
+
+                                        <Group gap="xs" wrap="nowrap">
+                                            <Badge
+                                                color={status === 'connected' ? 'green' : status === 'connecting' ? 'blue' : 'gray'}
+                                                variant="light"
+                                                size="sm"
+                                            >
+                                                {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                                            </Badge>
+
+                                            <Menu width={180}>
+                                                <Menu.Target>
+                                                    <ActionIcon variant="subtle" color="gray">
+                                                        <IconDots size={16} />
+                                                    </ActionIcon>
+                                                </Menu.Target>
+
+                                                <Menu.Dropdown>
+                                                    <Menu.Item
+                                                        leftSection={<IconPlugConnected size={14} />}
+                                                        onClick={() => handleTestConnection(connection)}
+                                                        disabled={testConnection.isPending}
+                                                    >
+                                                        Test Connection
+                                                    </Menu.Item>
+                                                    <Menu.Item
+                                                        leftSection={<IconPlugConnected size={14} />}
+                                                        onClick={() => handleConnect(connection)}
+                                                        disabled={connectToServer.isPending || status === 'connecting' || status === 'connected'}
+                                                    >
+                                                        {status === 'connected' ? 'Connected' : 'Connect'}
+                                                    </Menu.Item>
+                                                    <Menu.Divider />
+                                                    <Menu.Item
+                                                        leftSection={<IconEdit size={14} />}
+                                                        onClick={() => handleEdit(connection)}
+                                                    >
+                                                        Edit Connection
+                                                    </Menu.Item>
+                                                    <Menu.Item
+                                                        leftSection={<IconPlugConnectedX size={14} />}
+                                                        onClick={() => handleDisconnect(connection)}
+                                                        disabled={disconnectFromServer.isPending}
+                                                    >
+                                                        Disconnect
+                                                    </Menu.Item>
+                                                    <Menu.Divider />
+                                                    <Menu.Item
+                                                        leftSection={<IconTrash size={14} />}
+                                                        color="red"
+                                                        onClick={() => handleDelete(connection)}
+                                                        disabled={deleteConnection.isPending}
+                                                    >
+                                                        Delete
+                                                    </Menu.Item>
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        </Group>
                                     </Group>
-
-                                    <Group gap="xs">
-                                        <Badge
-                                            color={status === 'connected' ? 'green' : status === 'connecting' ? 'blue' : 'gray'}
-                                            variant="light"
-                                            size="sm"
-                                        >
-                                            {status === 'connected' ? 'Connected' : status === 'connecting' ? 'Connecting...' : 'Disconnected'}
-                                        </Badge>
-
+                                    
+                                    <Group gap="xs" visibleFrom="sm">
                                         <Button
                                             variant="light"
                                             size="xs"
@@ -251,41 +317,14 @@ export const ConnectionsPage = () => {
                                         >
                                             {status === 'connected' ? 'Connected' : 'Connect'}
                                         </Button>
-
-                                        <Menu width={180}>
-                                            <Menu.Target>
-                                                <ActionIcon variant="subtle" color="gray">
-                                                    <IconDots size={16} />
-                                                </ActionIcon>
-                                            </Menu.Target>
-
-                                            <Menu.Dropdown>
-                                                <Menu.Item
-                                                    leftSection={<IconEdit size={14} />}
-                                                    onClick={() => handleEdit(connection)}
-                                                >
-                                                    Edit Connection
-                                                </Menu.Item>
-                                                <Menu.Item
-                                                    leftSection={<IconPlugConnectedX size={14} />}
-                                                    onClick={() => handleDisconnect(connection)}
-                                                    disabled={disconnectFromServer.isPending}
-                                                >
-                                                    Disconnect
-                                                </Menu.Item>
-                                                <Menu.Divider />
-                                                <Menu.Item
-                                                    leftSection={<IconTrash size={14} />}
-                                                    color="red"
-                                                    onClick={() => handleDelete(connection)}
-                                                    disabled={deleteConnection.isPending}
-                                                >
-                                                    Delete
-                                                </Menu.Item>
-                                            </Menu.Dropdown>
-                                        </Menu>
                                     </Group>
-                                </Group>
+
+                                    {connection.lastUsed && (
+                                        <Text size="xs" c="dimmed" visibleFrom="sm">
+                                            Last used {new Date(connection.lastUsed).toLocaleDateString()}
+                                        </Text>
+                                    )}
+                                </Stack>
                             </Card>
                         );
                     })}
