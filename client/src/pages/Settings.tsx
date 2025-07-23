@@ -16,7 +16,6 @@ import {
 } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import {
-    IconCheck,
     IconDatabase,
     IconDownload,
     IconInfoCircle,
@@ -25,41 +24,141 @@ import {
     IconShield,
     IconTrash
 } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useAtom } from 'jotai';
 import { ThemeActions } from '../components/ThemeToggle';
 import { themeUtils } from '../lib/theme';
+import { userPreferencesAtom, updateUserPreferencesAtom, isGuestModeAtom } from '../store/atoms';
+import { useConnections } from '../services/connections';
+
+const calculateStorageSize = (data: unknown): number => {
+    try {
+        return new Blob([JSON.stringify(data)]).size;
+    } catch {
+        return 0;
+    }
+};
+
+const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
 
 export const SettingsPage = () => {
     const theme = useMantineTheme();
-    const [notifications_, setNotifications] = useState(true);
-    const [autoConnect, setAutoConnect] = useState(false);
-    const [logLevel, setLogLevel] = useState('info');
-    const [refreshInterval, setRefreshInterval] = useState(5);
-    const [autoScroll, setAutoScroll] = useState(true);
+    const [userPreferences] = useAtom(userPreferencesAtom);
+    const [, updateUserPreferences] = useAtom(updateUserPreferencesAtom);
+    const [isGuestMode] = useAtom(isGuestModeAtom);
+    const { data: connections = [] } = useConnections();
 
-    const handleSaveSettings = () => {
-        notifications.show({
-            title: 'Settings Saved',
-            message: 'Your preferences have been updated successfully',
-            color: 'green',
+    const storageUsage = useMemo(() => {
+        const connectionsSize = calculateStorageSize(connections);
+        const settingsSize = calculateStorageSize(userPreferences);
+        
+        const cacheKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key?.includes('cache') || key?.includes('log') || key?.includes('query-cache')) {
+                cacheKeys.push(key);
+            }
+        }
+        
+        let cacheSize = 0;
+        cacheKeys.forEach(key => {
+            const item = localStorage.getItem(key);
+            if (item) {
+                cacheSize += calculateStorageSize(item);
+            }
         });
-    };
 
-    const handleExportData = () => {
-        notifications.show({
-            title: 'Exporting Data',
-            message: 'Your data will be downloaded as a JSON file',
-            color: 'blue',
-        });
-    };
+        return {
+            connections: connectionsSize,
+            settings: settingsSize,
+            cache: cacheSize,
+            total: connectionsSize + settingsSize + cacheSize
+        };
+    }, [connections, userPreferences]);
 
-    const handleClearCache = () => {
-        notifications.show({
-            title: 'Cache Cleared',
-            message: 'All cached data has been removed',
-            color: 'orange',
-        });
-    };
+    const handleExportData = useCallback(() => {
+        try {
+            const exportData = {
+                version: '1.0.0',
+                exportedAt: new Date().toISOString(),
+                settings: userPreferences,
+                connections: connections.map(conn => ({
+                    id: conn.id,
+                    name: conn.name,
+                    host: conn.host,
+                    port: conn.port,
+                    username: conn.username,
+                    createdAt: conn.createdAt,
+                    updatedAt: conn.updatedAt,
+                    lastUsed: conn.lastUsed
+                }))
+            };
+
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `logged-export-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            notifications.show({
+                title: 'Export Successful',
+                message: 'Your data has been downloaded successfully',
+                color: 'green',
+            });
+        } catch {
+            notifications.show({
+                title: 'Export Failed',
+                message: 'Failed to export data. Please try again.',
+                color: 'red',
+            });
+        }
+    }, [userPreferences, connections]);
+
+    const handleClearCache = useCallback(() => {
+        try {
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key?.includes('cache') || key?.includes('log') || key?.includes('query-cache')) {
+                    keysToRemove.push(key);
+                }
+            }
+            
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+            
+            if (typeof window !== 'undefined' && 'caches' in window) {
+                caches.keys().then(cacheNames => {
+                    cacheNames.forEach(cacheName => {
+                        caches.delete(cacheName);
+                    });
+                });
+            }
+
+            notifications.show({
+                title: 'Cache Cleared',
+                message: `Cleared ${keysToRemove.length} cached items`,
+                color: 'green',
+            });
+        } catch {
+            notifications.show({
+                title: 'Clear Cache Failed',
+                message: 'Failed to clear cache. Please try again.',
+                color: 'red',
+            });
+        }
+    }, []);
 
     return (
         <Stack gap="lg">
@@ -72,24 +171,7 @@ export const SettingsPage = () => {
                             Configure your application preferences
                         </Text>
                     </Box>
-                    <Button
-                        leftSection={<IconCheck size={16} />}
-                        onClick={handleSaveSettings}
-                        size="sm"
-                        visibleFrom="xs"
-                    >
-                        <Text hiddenFrom="sm">Save</Text>
-                        <Text visibleFrom="sm">Save Changes</Text>
-                    </Button>
                 </Group>
-                <Button
-                    leftSection={<IconCheck size={16} />}
-                    onClick={handleSaveSettings}
-                    hiddenFrom="xs"
-                    fullWidth
-                >
-                    Save Changes
-                </Button>
             </Stack>
 
             {/* General Settings */}
@@ -113,8 +195,8 @@ export const SettingsPage = () => {
                             </Text>
                         </Box>
                         <Switch
-                            checked={notifications_}
-                            onChange={(e) => setNotifications(e.currentTarget.checked)}
+                            checked={userPreferences.notifications}
+                            onChange={(e) => updateUserPreferences({ notifications: e.currentTarget.checked })}
                             color="blue"
                             style={{ transition: themeUtils.transitions.normal }}
                         />
@@ -122,35 +204,21 @@ export const SettingsPage = () => {
 
                     <Group justify="space-between" align="flex-start" wrap="nowrap">
                         <Box style={{ minWidth: 0, flex: 1 }}>
-                            <Text size="sm" fw={500}>Auto-connect on startup</Text>
-                            <Text size="xs" c="dimmed">
-                                Automatically connect to the last used server
-                            </Text>
-                        </Box>
-                        <Switch
-                            checked={autoConnect}
-                            onChange={(e) => setAutoConnect(e.currentTarget.checked)}
-                            color="blue"
-                            style={{ transition: themeUtils.transitions.normal }}
-                        />
-                    </Group>
-
-                    <Group justify="space-between" align="flex-start" wrap="nowrap">
-                        <Box style={{ minWidth: 0, flex: 1 }}>
-                            <Text size="sm" fw={500}>Log Level</Text>
+                            <Text size="sm" fw={500}>Log Level Filter</Text>
                             <Text size="xs" c="dimmed">
                                 Minimum log level to display
                             </Text>
                         </Box>
                         <Select
                             data={[
+                                { value: 'all', label: 'All' },
                                 { value: 'debug', label: 'Debug' },
                                 { value: 'info', label: 'Info' },
                                 { value: 'warn', label: 'Warning' },
                                 { value: 'error', label: 'Error' },
                             ]}
-                            value={logLevel}
-                            onChange={(value) => setLogLevel(value || 'info')}
+                            value={userPreferences.logLevelFilter}
+                            onChange={(value) => updateUserPreferences({ logLevelFilter: (value as 'all' | 'error' | 'warn' | 'info' | 'debug') || 'all' })}
                             w={120}
                             styles={{
                                 input: {
@@ -164,16 +232,39 @@ export const SettingsPage = () => {
                         <Box style={{ minWidth: 0, flex: 1 }}>
                             <Text size="sm" fw={500}>Refresh Interval</Text>
                             <Text size="xs" c="dimmed">
-                                Seconds between automatic updates
+                                Milliseconds between automatic updates
                             </Text>
                         </Box>
                         <NumberInput
-                            value={refreshInterval}
-                            onChange={(value) => setRefreshInterval(Number(value))}
-                            min={1}
-                            max={60}
-                            w={100}
-                            suffix="s"
+                            value={userPreferences.refreshInterval}
+                            onChange={(value) => updateUserPreferences({ refreshInterval: Number(value) || 5000 })}
+                            min={1000}
+                            max={60000}
+                            step={1000}
+                            w={120}
+                            suffix="ms"
+                            styles={{
+                                input: {
+                                    transition: themeUtils.transitions.normal,
+                                },
+                            }}
+                        />
+                    </Group>
+
+                    <Group justify="space-between" align="flex-start" wrap="nowrap">
+                        <Box style={{ minWidth: 0, flex: 1 }}>
+                            <Text size="sm" fw={500}>Max Log Lines</Text>
+                            <Text size="xs" c="dimmed">
+                                Maximum number of log lines to keep in memory
+                            </Text>
+                        </Box>
+                        <NumberInput
+                            value={userPreferences.maxLogLines}
+                            onChange={(value) => updateUserPreferences({ maxLogLines: Number(value) || 1000 })}
+                            min={100}
+                            max={10000}
+                            step={100}
+                            w={120}
                             styles={{
                                 input: {
                                     transition: themeUtils.transitions.normal,
@@ -190,8 +281,8 @@ export const SettingsPage = () => {
                             </Text>
                         </Box>
                         <Switch
-                            checked={autoScroll}
-                            onChange={(e) => setAutoScroll(e.currentTarget.checked)}
+                            checked={userPreferences.autoScroll}
+                            onChange={(e) => updateUserPreferences({ autoScroll: e.currentTarget.checked })}
                             color="blue"
                             style={{ transition: themeUtils.transitions.normal }}
                         />
@@ -245,34 +336,26 @@ export const SettingsPage = () => {
                         style={{ transition: themeUtils.transitions.normal }}
                     >
                         <Text size="sm">
-                            Your connection credentials are encrypted and stored securely.
-                            We recommend using SSH keys instead of passwords when possible.
+                            {isGuestMode 
+                                ? 'Guest mode: Connection credentials are stored temporarily in your browser and will be lost when you close the tab.'
+                                : 'Your connection credentials are encrypted and stored securely. We recommend using SSH keys instead of passwords when possible.'
+                            }
                         </Text>
                     </Alert>
 
-                    <Group justify="space-between">
-                        <div>
-                            <Text size="sm" fw={500}>Session Timeout</Text>
-                            <Text size="xs" c="dimmed">
-                                Auto-logout after inactivity (minutes)
-                            </Text>
-                        </div>
-                        <Select
-                            data={[
-                                { value: '15', label: '15 minutes' },
-                                { value: '30', label: '30 minutes' },
-                                { value: '60', label: '1 hour' },
-                                { value: '120', label: '2 hours' },
-                            ]}
-                            defaultValue="30"
-                            w={130}
-                            styles={{
-                                input: {
-                                    transition: themeUtils.transitions.normal,
-                                },
-                            }}
-                        />
-                    </Group>
+                    {!isGuestMode && (
+                        <Group justify="space-between">
+                            <div>
+                                <Text size="sm" fw={500}>Session Management</Text>
+                                <Text size="xs" c="dimmed">
+                                    Managed by your authentication provider
+                                </Text>
+                            </div>
+                            <Badge variant="light" color="green">
+                                Active
+                            </Badge>
+                        </Group>
+                    )}
                 </Stack>
             </Card>
 
@@ -336,13 +419,20 @@ export const SettingsPage = () => {
                         <Text size="sm" fw={500} mb="xs">Storage Usage</Text>
                         <Group gap="md">
                             <div>
-                                <Text size="xs" c="dimmed">Connections: 2.1 KB</Text>
-                                <Text size="xs" c="dimmed">Logs Cache: 15.7 MB</Text>
-                                <Text size="xs" c="dimmed">Settings: 0.8 KB</Text>
+                                <Text size="xs" c="dimmed">Connections: {formatBytes(storageUsage.connections)}</Text>
+                                <Text size="xs" c="dimmed">Cache: {formatBytes(storageUsage.cache)}</Text>
+                                <Text size="xs" c="dimmed">Settings: {formatBytes(storageUsage.settings)}</Text>
                             </div>
-                            <Badge variant="light" color="blue">
-                                Total: 15.7 MB
-                            </Badge>
+                            <Group gap="xs">
+                                <Badge variant="light" color="blue">
+                                    Total: {formatBytes(storageUsage.total)}
+                                </Badge>
+                                {connections.length > 0 && (
+                                    <Badge variant="light" color="green">
+                                        {connections.length} connection{connections.length !== 1 ? 's' : ''}
+                                    </Badge>
+                                )}
+                            </Group>
                         </Group>
                     </Alert>
                 </Stack>
